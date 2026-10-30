@@ -1,0 +1,29 @@
+# Backups and temporary files
+*.bak
+*.tmp
+*.temp
+*.swp
+*~
+
+# Windows metadata stream artifacts
+*:Zone.Identifier
+desktop.ini
+Thumbs.db
+
+# macOS artifacts
+.DS_Store
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE & Editor settings
+.vscode/
+.idea/
