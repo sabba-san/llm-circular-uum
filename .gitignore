@@ -24,6 +24,10 @@ venv/
 .venv/
 env/
 
+# Local databases and environment keys
+data/*.db
+.env
+
 # IDE & Editor settings
 .vscode/
 .idea/
