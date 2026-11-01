@@ -24,7 +24,9 @@ logger = logging.getLogger("IngestPipeline")
 
 ROOT_DIR = find_root_dir()
 EXCEL_FILE = os.path.join(ROOT_DIR, "circular_Forms_tracker.xlsx")
-CACHE_FILE = os.path.join(ROOT_DIR, ".metadata_cache.json")
+CACHE_FILE = os.path.join(ROOT_DIR, "data", ".metadata_cache.json")
+if not os.path.exists(CACHE_FILE) and os.path.exists(os.path.join(ROOT_DIR, ".metadata_cache.json")):
+    CACHE_FILE = os.path.join(ROOT_DIR, ".metadata_cache.json")
 SQLITE_DB = os.path.join(ROOT_DIR, "data", "uum_knowledge.db")
 
 def read_excel_tracker(excel_path):
@@ -291,3 +293,4 @@ def run_ingestion():
 
 if __name__ == "__main__":
     run_ingestion()
+

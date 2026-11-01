@@ -194,3 +194,4 @@ def print_result(res):
         forms_str = f" | Borang: {forms}" if forms and forms != "-" else ""
         print(f"   [{idx}] {s['circular_ref_no']} ({s['department']}) - M/S {s['page_number']}: {s['section_heading']}{forms_str}")
     print("=" * 75 + "\n")
+

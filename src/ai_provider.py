@@ -239,3 +239,4 @@ class AIProvider:
             lines.append("")
 
         return "\n".join(lines), "Offline Extractive Engine"
+

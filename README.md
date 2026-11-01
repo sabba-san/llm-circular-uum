@@ -40,28 +40,23 @@ llm_uum/
 ├── docs/                          # 📄 System Documentation
 │   └── PRD_... (LLM).docx         # Official System PRD & Specification
 │
-├── data/                          # 💾 Local Knowledge Base & Databases
-│   └── uum_knowledge.db           # SQLite FTS5 Full-Text & Vector Database (git-ignored)
+├── data/                          # 💾 Local Knowledge Base & Pre-extracted Cache
+│   ├── uum_knowledge.db           # SQLite FTS5 Full-Text & Vector Database (git-ignored)
+│   └── .metadata_cache.json       # Pre-extracted metadata & OCR cache (<1s runs)
 │
-├── circular_forms/                # 📂 Collected Document Corpus (95 MB)
-│   ├── Bedahari/                  # Jabatan Bendahari Collection (Abbas)
-│   │   ├── 02_Circulars/          # 141 Circulars (2009 - 2026)
-│   │   └── 02_forms/              # 38 Official Forms & Templates
-│   ├── RMC/                       # Research Management Centre (Abbas)
-│   │   ├── 01_Circulars/          # 28 Circulars & Guidelines (Senat 326, etc.)
-│   │   └── 01_Forms/              # 20 Forms (RMC 001 - RMC 023, RaIIS, etc.)
-│   ├── ICC/                       # Innovation & Commercialization (Lia)
-│   │   ├── 03_Circulars/          # (Phase 1 Collection)
-│   │   └── 03_forms/              # (Phase 1 Collection)
-│   └── JUU/                       # Jabatan Undang-Undang / Legal (Lia)
-│       ├── 04_circulars/          # (Phase 1 Collection)
-│       └── 04_forms/              # (Phase 1 Collection)
-│
-└── [Legacy Compatibility Wrappers]
-    ├── sort_tracker.py            # -> calls src/tracker_sorter.py
-    ├── ask_uum.py                 # -> calls ask.py
-    ├── ingest_to_postgres.py      # -> calls src/ingestion.py
-    └── db_setup.py                # -> calls src/db.py
+└── circular_forms/                # 📂 Collected Document Corpus (95 MB)
+    ├── Bedahari/                  # Jabatan Bendahari Collection (Abbas)
+    │   ├── 02_Circulars/          # 141 Circulars (2009 - 2026)
+    │   └── 02_forms/              # 38 Official Forms & Templates
+    ├── RMC/                       # Research Management Centre (Abbas)
+    │   ├── 01_Circulars/          # 28 Circulars & Guidelines (Senat 326, etc.)
+    │   └── 01_Forms/              # 20 Forms (RMC 001 - RMC 023, RaIIS, etc.)
+    ├── ICC/                       # Innovation & Commercialization (Lia)
+    │   ├── 03_Circulars/          # (Phase 1 Collection)
+    │   └── 03_forms/              # (Phase 1 Collection)
+    └── JUU/                       # Jabatan Undang-Undang / Legal (Lia)
+        ├── 04_circulars/          # (Phase 1 Collection)
+        └── 04_forms/              # (Phase 1 Collection)
 ```
 
 ---

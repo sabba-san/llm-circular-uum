@@ -5,7 +5,7 @@ Automated Metadata Extractor, Classifier & Excel Tracker Generator
 
 Authors: Ahmad Abbas & Team
 Usage:
-    python3 sort_tracker.py [--clean] [--output circular_Forms_tracker.xlsx] [--force-ocr]
+    python3 sort.py [--clean] [--output circular_Forms_tracker.xlsx] [--force-ocr]
 """
 
 import os
@@ -31,7 +31,10 @@ def find_root_dir():
 BASE_DIR = find_root_dir()
 CIRCULAR_FORMS_DIR = os.path.join(BASE_DIR, "circular_forms")
 DEFAULT_EXCEL_OUT = os.path.join(BASE_DIR, "circular_Forms_tracker.xlsx")
-CACHE_FILE = os.path.join(BASE_DIR, ".metadata_cache.json")
+DATA_DIR = os.path.join(BASE_DIR, "data")
+CACHE_FILE = os.path.join(DATA_DIR, ".metadata_cache.json")
+if not os.path.exists(CACHE_FILE) and os.path.exists(os.path.join(BASE_DIR, ".metadata_cache.json")):
+    CACHE_FILE = os.path.join(BASE_DIR, ".metadata_cache.json")
 
 DEPT_MAPPING = {
     "rmc": "Research Management Centre (RMC)",
