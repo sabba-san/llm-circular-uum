@@ -50,29 +50,28 @@ class AIProvider:
         self.openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
 
     def get_embedding(self, text):
-        """Generate 768-dimensional vector embedding using Google Gemini or fallback."""
+        """Generate vector embedding using Google Gemini or fallback."""
         text = text.strip()
         if not text:
             return [0.0] * 768
 
-        # 1. Try Gemini text-embedding-004
+        # 1. Try Gemini embedding models
         if self.gemini_key:
-            try:
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key={self.gemini_key}"
-                payload = {
-                    "model": "models/text-embedding-004",
-                    "content": {"parts": [{"text": text[:2048]}]}
-                }
-                res = requests.post(url, json=payload, timeout=10)
-                if res.status_code == 200:
-                    data = res.json()
-                    values = data.get("embedding", {}).get("values", [])
-                    if values:
-                        return values
-                else:
-                    logger.warning(f"Gemini embedding API error {res.status_code}: {res.text[:120]}")
-            except Exception as e:
-                logger.warning(f"Gemini embedding failed: {e}")
+            for model in ["gemini-embedding-001", "text-embedding-004"]:
+                try:
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:embedContent?key={self.gemini_key}"
+                    payload = {
+                        "model": f"models/{model}",
+                        "content": {"parts": [{"text": text[:2048]}]}
+                    }
+                    res = requests.post(url, json=payload, timeout=10)
+                    if res.status_code == 200:
+                        data = res.json()
+                        values = data.get("embedding", {}).get("values", [])
+                        if values:
+                            return values
+                except Exception as e:
+                    logger.debug(f"Gemini embedding model {model} failed: {e}")
 
         # Fallback: Deterministic semantic pseudo-vector for local offline development
         return self._generate_fallback_vector(text, dim=768)
@@ -131,7 +130,7 @@ class AIProvider:
         if self.gemini_key:
             res_text = self._call_gemini(full_prompt)
             if res_text:
-                return res_text, "Google Gemini (gemini-1.5-flash)"
+                return res_text, "Google Gemini Flash"
 
         # 2. Try Groq (Llama 3.3 70B)
         if self.groq_key:
@@ -149,24 +148,28 @@ class AIProvider:
         return self._extractive_fallback(user_query, retrieved_chunks)
 
     def _call_gemini(self, prompt):
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={self.gemini_key}"
-            payload = {
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {"temperature": 0.2, "maxOutputTokens": 2048}
-            }
-            res = requests.post(url, json=payload, timeout=25)
-            if res.status_code == 200:
-                data = res.json()
-                candidates = data.get("candidates", [])
-                if candidates:
-                    parts = candidates[0].get("content", {}).get("parts", [])
-                    if parts:
-                        return parts[0].get("text", "")
-            else:
-                logger.warning(f"Gemini API returned status {res.status_code}: {res.text[:120]}")
-        except Exception as e:
-            logger.warning(f"Gemini call failed: {e}")
+        models = ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.8-flash", "gemini-flash-latest"]
+        for model in models:
+            try:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={self.gemini_key}"
+                payload = {
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {"temperature": 0.2, "maxOutputTokens": 2048}
+                }
+                res = requests.post(url, json=payload, timeout=30)
+                if res.status_code == 200:
+                    data = res.json()
+                    candidates = data.get("candidates", [])
+                    if candidates:
+                        parts = candidates[0].get("content", {}).get("parts", [])
+                        if parts:
+                            return parts[0].get("text", "")
+                elif res.status_code == 404:
+                    continue  # Try next model in sequence
+                else:
+                    logger.warning(f"Gemini API ({model}) status {res.status_code}: {res.text[:120]}")
+            except Exception as e:
+                logger.warning(f"Gemini call to {model} failed: {e}")
         return None
 
     def _call_groq(self, system_prompt, user_content):
