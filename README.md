@@ -21,6 +21,7 @@ Users can query the system in natural language (Bahasa Melayu & English) to retr
 
 ```
 llm_uum/
+├── pipeline.py                    # 🚀 Unified Automation Pipeline (Sort + Ingest in 1-Click)
 ├── ask.py                         # 🔍 Ask Assistant CLI (One-shot & Interactive Mode)
 ├── ingest.py                      # ⚡ Chunking & Database Ingestion CLI
 ├── sort.py                        # 📊 Circular & Form Auto-Sorter & OCR CLI
@@ -91,7 +92,29 @@ Edit `.env` to configure your keys:
 
 ## 🚀 CLI Commands
 
-### 1. Ask Assistant (`ask.py`)
+### 1. Unified Automation Pipeline (`pipeline.py`) — Recommended!
+Whenever you or your team add new circulars or forms into `circular_forms/`, run this **single command**:
+```bash
+python3 pipeline.py
+```
+This automatically:
+- Scans `circular_forms/` across all PTJs (RMC, Bendahari, ICC, JUU).
+- Extracts metadata and OCR, and updates [`circular_Forms_tracker.xlsx`](./circular_Forms_tracker.xlsx).
+- Incrementally embeds only new/modified chunks, skipping existing cached vectors to save API quota.
+- Rebuilds the search index in seconds!
+
+Options:
+```bash
+# Clean Windows artifact files (:Zone.Identifier / desktop.ini)
+python3 pipeline.py --clean
+
+# Force full re-embedding from scratch
+python3 pipeline.py --force-reembed
+```
+
+---
+
+### 2. Ask Assistant (`ask.py`)
 Run a one-shot query:
 ```bash
 python3 ask.py "Berapakah kadar bayaran penceramah luar untuk kakitangan swasta?"

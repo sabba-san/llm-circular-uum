@@ -158,7 +158,7 @@ def chunk_document(filepath, cache_meta=None):
 
     return chunks
 
-def run_ingestion():
+def run_ingestion(force_reembed=False):
     ai = AIProvider()
     circulars, forms = read_excel_tracker(EXCEL_FILE)
     logger.info(f"Loaded {len(circulars)} circulars and {len(forms)} forms from {EXCEL_FILE}")
@@ -268,44 +268,65 @@ def run_ingestion():
             })
 
     total_chunks = len(chunks_to_insert)
-    batch_size = 50
-    delay = 4.2
-    total_batches = (total_chunks + batch_size - 1) // batch_size
-    print(f"[*] Ingesting & embedding {total_chunks} chunks in {total_batches} batches (batch size: {batch_size}, delay: {delay}s)...")
 
-    for b_idx in range(total_batches):
-        start = b_idx * batch_size
-        batch_chunks = chunks_to_insert[start:start + batch_size]
-        batch_texts = [ch["embed_input"] for ch in batch_chunks]
+    # 4. Check existing embeddings for incremental ingestion
+    existing_embeddings = {}
+    if not force_reembed:
+        if use_postgres:
+            with pg_con.cursor() as cur:
+                cur.execute("SELECT chunk_id, embedding FROM document_chunks WHERE embedding IS NOT NULL;")
+                for row in cur.fetchall():
+                    existing_embeddings[row[0]] = row[1]
+        else:
+            cur = sqlite_con.cursor()
+            cur.execute("SELECT chunk_id, embedding_json FROM document_chunks WHERE length(embedding_json) > 100;")
+            for row in cur.fetchall():
+                try:
+                    existing_embeddings[row[0]] = json.loads(row[1])
+                except Exception:
+                    pass
 
-        batch_embs = ai.batch_get_embeddings(batch_texts, batch_size=batch_size, delay=0)
+    new_chunks = [ch for ch in chunks_to_insert if ch["chunk_id"] not in existing_embeddings]
+    if new_chunks:
+        print(f"[*] Found {len(new_chunks)} new/unembedded chunks out of {total_chunks} total. Generating embeddings...")
+        batch_size = 50
+        delay = 4.2
+        total_batches = (len(new_chunks) + batch_size - 1) // batch_size
+        for b_idx in range(total_batches):
+            start = b_idx * batch_size
+            batch = new_chunks[start:start + batch_size]
+            batch_texts = [ch["embed_input"] for ch in batch]
+            batch_embs = ai.batch_get_embeddings(batch_texts, batch_size=batch_size, delay=0)
+            for idx, ch in enumerate(batch):
+                emb = batch_embs[idx] if idx < len(batch_embs) else [0.0] * 768
+                existing_embeddings[ch["chunk_id"]] = emb
+            print(f"  [+] Embedded {min(start + batch_size, len(new_chunks))}/{len(new_chunks)} new chunks")
+            if b_idx + 1 < total_batches and delay > 0:
+                time.sleep(delay)
+    else:
+        print(f"[*] All {total_chunks} chunks already have valid embeddings. (Incremental skip)")
 
-        for idx, ch in enumerate(batch_chunks):
-            embedding = batch_embs[idx] if idx < len(batch_embs) else [0.0] * 768
+    print(f"[*] Storing {total_chunks} chunks into database...")
+    for ch in chunks_to_insert:
+        embedding = existing_embeddings.get(ch["chunk_id"], [0.0] * 768)
+        if use_postgres:
+            with pg_con.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO document_chunks (chunk_id, circular_id, circular_ref_no, department, status, section_heading, page_number, chunk_text, required_forms, embedding)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (chunk_id) DO UPDATE SET
+                        chunk_text = EXCLUDED.chunk_text, required_forms = EXCLUDED.required_forms, embedding = EXCLUDED.embedding;
+                """, (ch["chunk_id"], ch["circular_id"], ch["circular_ref_no"], ch["department"], ch["status"], ch["section_heading"], ch["page_number"], ch["chunk_text"], ch["required_forms"], embedding))
+        else:
+            sqlite_con.execute("""
+                INSERT OR REPLACE INTO document_chunks (chunk_id, circular_id, circular_ref_no, department, status, section_heading, page_number, chunk_text, required_forms, embedding_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (ch["chunk_id"], ch["circular_id"], ch["circular_ref_no"], ch["department"], ch["status"], ch["section_heading"], ch["page_number"], ch["chunk_text"], ch["required_forms"], json.dumps(embedding)))
 
-            if use_postgres:
-                with pg_con.cursor() as cur:
-                    cur.execute("""
-                        INSERT INTO document_chunks (chunk_id, circular_id, circular_ref_no, department, status, section_heading, page_number, chunk_text, required_forms, embedding)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (chunk_id) DO UPDATE SET
-                            chunk_text = EXCLUDED.chunk_text, required_forms = EXCLUDED.required_forms, embedding = EXCLUDED.embedding;
-                    """, (ch["chunk_id"], ch["circular_id"], ch["circular_ref_no"], ch["department"], ch["status"], ch["section_heading"], ch["page_number"], ch["chunk_text"], ch["required_forms"], embedding))
-            else:
-                sqlite_con.execute("""
-                    INSERT OR REPLACE INTO document_chunks (chunk_id, circular_id, circular_ref_no, department, status, section_heading, page_number, chunk_text, required_forms, embedding_json)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (ch["chunk_id"], ch["circular_id"], ch["circular_ref_no"], ch["department"], ch["status"], ch["section_heading"], ch["page_number"], ch["chunk_text"], ch["required_forms"], json.dumps(embedding)))
-
-        if sqlite_con:
-            sqlite_con.commit()
-        if pg_con:
-            pg_con.commit()
-
-        print(f"  [+] Ingested Batch {b_idx + 1}/{total_batches} ({min(start + batch_size, total_chunks)}/{total_chunks} chunks)")
-
-        if b_idx + 1 < total_batches and delay > 0:
-            time.sleep(delay)
+    if sqlite_con:
+        sqlite_con.commit()
+    if pg_con:
+        pg_con.commit()
 
     if sqlite_con:
         print("[*] Building SQLite FTS5 Full-Text Search index...")
