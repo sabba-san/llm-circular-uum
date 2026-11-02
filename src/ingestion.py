@@ -9,6 +9,7 @@ Ingests:
 
 import os
 import re
+import time
 import json
 import sqlite3
 import subprocess
@@ -227,8 +228,8 @@ def run_ingestion():
             """, (f["id"], f["form_code"], f["form_title"], f["department"], f["related_circular"], f["project_activity_type"], f["is_mandatory"], f_path, f["file_format"], f["notes"]))
 
     # 3. Chunk Documents & Generate Embeddings
-    print("[*] Parsing documents into semantic chunks & generating embeddings...")
-    total_chunks = 0
+    print("[*] Parsing documents into semantic chunks...")
+    chunks_to_insert = []
 
     for c in circulars:
         rel_path = c["file_path"].replace("\\", "/")
@@ -244,7 +245,43 @@ def run_ingestion():
             heading = chk["heading"]
             page = chk["page"]
             text = chk["text"]
-            embedding = ai.get_embedding(f"{c['ref_no']}: {heading}\n{text}")
+
+            # Clause-level form mapping
+            chunk_forms = c["required_forms"]
+            combined_clause = (heading + " " + text).lower()
+            if "gra" in combined_clause or "pembantu penyelidik" in combined_clause:
+                chunk_forms = "Borang RMC 008 (Borang Permohonan RA dan GRA)"
+            elif "pendaftaran projek" in combined_clause or ("raiis" in combined_clause and "perundingan" not in combined_clause):
+                chunk_forms = "Borang RMC 001 (Pendaftaran Projek RaIIS)"
+
+            chunks_to_insert.append({
+                "chunk_id": chunk_id,
+                "circular_id": c["id"],
+                "circular_ref_no": c["ref_no"],
+                "department": c["department"],
+                "status": c["status"],
+                "section_heading": heading,
+                "page_number": page,
+                "chunk_text": text,
+                "required_forms": chunk_forms,
+                "embed_input": f"{c['ref_no']}: {heading}\n{text}"
+            })
+
+    total_chunks = len(chunks_to_insert)
+    batch_size = 50
+    delay = 4.2
+    total_batches = (total_chunks + batch_size - 1) // batch_size
+    print(f"[*] Ingesting & embedding {total_chunks} chunks in {total_batches} batches (batch size: {batch_size}, delay: {delay}s)...")
+
+    for b_idx in range(total_batches):
+        start = b_idx * batch_size
+        batch_chunks = chunks_to_insert[start:start + batch_size]
+        batch_texts = [ch["embed_input"] for ch in batch_chunks]
+
+        batch_embs = ai.batch_get_embeddings(batch_texts, batch_size=batch_size, delay=0)
+
+        for idx, ch in enumerate(batch_chunks):
+            embedding = batch_embs[idx] if idx < len(batch_embs) else [0.0] * 768
 
             if use_postgres:
                 with pg_con.cursor() as cur:
@@ -252,15 +289,23 @@ def run_ingestion():
                         INSERT INTO document_chunks (chunk_id, circular_id, circular_ref_no, department, status, section_heading, page_number, chunk_text, required_forms, embedding)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT (chunk_id) DO UPDATE SET
-                            chunk_text = EXCLUDED.chunk_text, embedding = EXCLUDED.embedding;
-                    """, (chunk_id, c["id"], c["ref_no"], c["department"], c["status"], heading, page, text, c["required_forms"], embedding))
+                            chunk_text = EXCLUDED.chunk_text, required_forms = EXCLUDED.required_forms, embedding = EXCLUDED.embedding;
+                    """, (ch["chunk_id"], ch["circular_id"], ch["circular_ref_no"], ch["department"], ch["status"], ch["section_heading"], ch["page_number"], ch["chunk_text"], ch["required_forms"], embedding))
             else:
                 sqlite_con.execute("""
                     INSERT OR REPLACE INTO document_chunks (chunk_id, circular_id, circular_ref_no, department, status, section_heading, page_number, chunk_text, required_forms, embedding_json)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (chunk_id, c["id"], c["ref_no"], c["department"], c["status"], heading, page, text, c["required_forms"], json.dumps(embedding)))
+                """, (ch["chunk_id"], ch["circular_id"], ch["circular_ref_no"], ch["department"], ch["status"], ch["section_heading"], ch["page_number"], ch["chunk_text"], ch["required_forms"], json.dumps(embedding)))
 
-            total_chunks += 1
+        if sqlite_con:
+            sqlite_con.commit()
+        if pg_con:
+            pg_con.commit()
+
+        print(f"  [+] Ingested Batch {b_idx + 1}/{total_batches} ({min(start + batch_size, total_chunks)}/{total_chunks} chunks)")
+
+        if b_idx + 1 < total_batches and delay > 0:
+            time.sleep(delay)
 
     if sqlite_con:
         print("[*] Building SQLite FTS5 Full-Text Search index...")

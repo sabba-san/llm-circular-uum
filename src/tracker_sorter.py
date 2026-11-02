@@ -771,7 +771,7 @@ def parse_circular_metadata(filename, filepath, raw_text, dept_key):
         elif "dokumen 3p" in text_corpus or "senat 326" in text_corpus:
             req_forms.append("RMC 001, RMC 006, RMC 008, RMC 012, RMC 016, RMC 019, RMC 021, RMC 023, Borang Perakuan Tamat")
         elif "geran" in text_corpus:
-            req_forms.append("Borang Permohonan Geran, RMC 001")
+            req_forms.append("RMC 001 (Pendaftaran Projek RaIIS), RMC 008 (Lantikan RA/GRA)")
         elif "perundingan" in text_corpus:
             req_forms.append("Borang Pendaftaran Perundingan RaIIS, RMC 019")
         elif "kad kredit" in text_corpus or "kkk" in text_corpus:

@@ -7,15 +7,58 @@ Interactive Query CLI with Hybrid Retrieval (BM25 + Semantic Vector Search)
 import os
 import sys
 import json
+import re
 import sqlite3
 import argparse
 import math
-from src.ai_provider import AIProvider, load_env, find_root_dir
+from src.ai_provider import AIProvider, load_env, find_root_dir, is_english_query
 
 load_env()
 
 ROOT_DIR = find_root_dir()
 SQLITE_DB = os.path.join(ROOT_DIR, "data", "uum_knowledge.db")
+
+ENGLISH_TO_MALAY_EXPANSION = {
+    "gra": ["gra", "pembantu", "penyelidik", "siswazah", "lantikan", "rmc 008"],
+    "graduate": ["siswazah", "pembantu", "penyelidik"],
+    "research": ["penyelidikan", "geran", "projek", "rmc"],
+    "assistant": ["pembantu", "penyelidik", "ra", "gra", "lantikan"],
+    "appoint": ["lantikan", "permohonan", "syarat", "vot 11000"],
+    "appointment": ["lantikan", "permohonan", "syarat", "rmc 008", "vot 11000"],
+    "claim": ["tuntutan", "kadar", "bayaran"],
+    "claims": ["tuntutan", "kadar", "bayaran"],
+    "travel": ["perjalanan", "perbatuan", "elaun", "tambang"],
+    "speaker": ["penceramah", "saguhati", "pensyarah"],
+    "external": ["luar", "swasta", "agensi"],
+    "honorarium": ["saguhati", "kadar", "bayaran", "penceramah", "pensyarah"],
+    "asset": ["aset", "harta", "kew.pa"],
+    "disposal": ["pelupusan", "hapuskira", "kew.pa"],
+    "procurement": ["perolehan", "pesanan", "pembekal", "pk 7"],
+    "quotation": ["sebutharga", "tender", "perolehan"],
+    "tender": ["tender", "sebutharga", "perolehan"],
+    "salary": ["gaji", "upah", "elaun"],
+    "allowance": ["elaun", "upah", "vot 11000"],
+    "medical": ["rawatan", "perubatan", "klinik"],
+    "conference": ["persidangan", "seminar", "bengkel"],
+    "consultancy": ["perundingan", "raiis", "rmc 019"],
+    "advance": ["pendahuluan", "diri"],
+    "cash": ["wang", "runcit", "panjar"],
+    "form": ["borang"],
+    "forms": ["borang"],
+    "rules": ["garis", "panduan", "pekeliling", "syarat"],
+    "requirement": ["syarat", "kelayakan"],
+    "requirements": ["syarat", "kelayakan", "vot 11000"],
+}
+
+def expand_query_tokens(query):
+    """Expand query tokens with cross-lingual UUM administrative domain keywords."""
+    clean = re.sub(r"[^a-zA-Z0-9\s]", " ", query.lower())
+    words = clean.split()
+    expanded = set(words)
+    for w in words:
+        if w in ENGLISH_TO_MALAY_EXPANSION:
+            expanded.update(ENGLISH_TO_MALAY_EXPANSION[w])
+    return [w for w in expanded if len(w) > 2]
 
 def cosine_similarity(v1, v2):
     """Compute cosine similarity between two float vectors."""
@@ -48,8 +91,8 @@ class UUMAssistant:
     def hybrid_search(self, query, top_k=5, filter_active=True):
         """Perform hybrid BM25 + Dense Semantic search across UUM circular chunks."""
         q_vec = self.ai.get_embedding(query)
-        clean_tokens = [w for w in query.replace("?", "").replace("'", "").replace('"', "").split() if len(w) > 2]
-        fts_query = " OR ".join(clean_tokens[:6]) if clean_tokens else query
+        expanded_tokens = expand_query_tokens(query)
+        fts_query = " OR ".join(expanded_tokens[:12]) if expanded_tokens else query
         candidates = {}
 
         if self.use_postgres:
@@ -60,7 +103,7 @@ class UUMAssistant:
                            ts_rank_cd(tsv_content, websearch_to_tsquery('simple', %s)) AS bm25_score
                     FROM document_chunks
                     WHERE (%s = FALSE OR status = 'Active') AND tsv_content @@ websearch_to_tsquery('simple', %s)
-                    ORDER BY bm25_score DESC LIMIT 20;
+                    ORDER BY bm25_score DESC LIMIT 25;
                 """, (filter_active, query))
                 for row in cur.fetchall():
                     cid = row[0]
@@ -83,7 +126,7 @@ class UUMAssistant:
                            1 - (embedding <=> %s::vector) AS sim_score
                     FROM document_chunks
                     WHERE (%s = FALSE OR status = 'Active')
-                    ORDER BY embedding <=> %s::vector ASC LIMIT 20;
+                    ORDER BY embedding <=> %s::vector ASC LIMIT 25;
                 """, (q_vec, filter_active, q_vec))
                 for row in cur.fetchall():
                     cid = row[0]
@@ -104,7 +147,7 @@ class UUMAssistant:
                             "vec_score": sim,
                         }
         else:
-            # SQLite FTS5 Search
+            # SQLite FTS5 Search (with expanded tokens)
             try:
                 cur = self.sqlite_con.cursor()
                 cur.execute("""
@@ -113,7 +156,7 @@ class UUMAssistant:
                     FROM chunks_fts f
                     JOIN document_chunks c ON f.chunk_id = c.chunk_id
                     WHERE chunks_fts MATCH ? AND (? = 0 OR c.status = 'Active')
-                    ORDER BY rank LIMIT 25;
+                    ORDER BY rank LIMIT 40;
                 """, (fts_query, 1 if filter_active else 0))
                 for r in cur.fetchall():
                     cid = r["chunk_id"]
@@ -134,26 +177,40 @@ class UUMAssistant:
             except Exception:
                 pass
 
-            # SQLite Vector scanning
+            # SQLite Vector scanning across active chunks to catch semantic matches
             cur = self.sqlite_con.cursor()
-            cur.execute("SELECT chunk_id, circular_ref_no, department, status, section_heading, page_number, chunk_text, required_forms, embedding_json FROM document_chunks WHERE (? = 0 OR status = 'Active') LIMIT 60;", (1 if filter_active else 0,))
+            cur.execute("""
+                SELECT chunk_id, circular_ref_no, department, status, section_heading, page_number, chunk_text, required_forms, embedding_json 
+                FROM document_chunks 
+                WHERE (? = 0 OR status = 'Active')
+            """, (1 if filter_active else 0,))
+
+            vector_candidates = []
             for r in cur.fetchall():
                 cid = r["chunk_id"]
-                if cid not in candidates:
-                    vec = json.loads(r["embedding_json"]) if r["embedding_json"] else []
-                    sim = cosine_similarity(q_vec, vec) if vec else 0.0
-                    candidates[cid] = {
-                        "chunk_id": cid,
-                        "circular_ref_no": r["circular_ref_no"],
-                        "department": r["department"],
-                        "status": r["status"],
-                        "section_heading": r["section_heading"],
-                        "page_number": r["page_number"],
-                        "chunk_text": r["chunk_text"],
-                        "required_forms": r["required_forms"],
-                        "bm25_score": 0.0,
-                        "vec_score": sim,
-                    }
+                if cid in candidates:
+                    continue
+                vec = json.loads(r["embedding_json"]) if r["embedding_json"] else []
+                if vec:
+                    sim = cosine_similarity(q_vec, vec)
+                    if sim > 0.40:
+                        vector_candidates.append((sim, r))
+
+            vector_candidates.sort(key=lambda x: x[0], reverse=True)
+            for sim, r in vector_candidates[:35]:
+                cid = r["chunk_id"]
+                candidates[cid] = {
+                    "chunk_id": cid,
+                    "circular_ref_no": r["circular_ref_no"],
+                    "department": r["department"],
+                    "status": r["status"],
+                    "section_heading": r["section_heading"],
+                    "page_number": r["page_number"],
+                    "chunk_text": r["chunk_text"],
+                    "required_forms": r["required_forms"],
+                    "bm25_score": 0.0,
+                    "vec_score": sim,
+                }
 
         results = list(candidates.values())
         max_bm25 = max([c["bm25_score"] for c in results], default=1.0) or 1.0
@@ -168,30 +225,48 @@ class UUMAssistant:
         retrieved = self.hybrid_search(query, top_k=4, filter_active=True)
 
         if not retrieved:
+            if is_english_query(query):
+                msg = "No official circulars or guidelines were found for your query. Please contact the responsible Department (PTJ) for further information."
+            else:
+                msg = "Tiada pekeliling atau garis panduan rasmi yang ditemui berkaitan carian anda. Sila hubungi Pegawai Pusat Tanggungjawab (PTJ) berkenaan untuk maklumat lanjut."
             return {
-                "answer": "Tiada pekeliling atau garis panduan rasmi yang ditemui berkaitan carian anda. Sila hubungi Pegawai Pusat Tanggungjawab (PTJ) berkenaan untuk maklumat lanjut.",
+                "answer": msg,
                 "provider": "None",
-                "sources": []
+                "sources": [],
+                "query": query
             }
 
         response_text, provider_name = self.ai.generate_chat_response(query, retrieved)
         return {
             "answer": response_text,
             "provider": provider_name,
-            "sources": retrieved
+            "sources": retrieved,
+            "query": query
         }
 
 def print_result(res):
+    query = res.get("query", "")
+    is_en = is_english_query(query)
     print("\n" + "=" * 75)
-    print("  UUM DOCUMENT INTELLIGENCE ASSISTANT (RAG)")
+    if is_en:
+        print("  UUM DOCUMENT INTELLIGENCE ASSISTANT (RAG)")
+    else:
+        print("  PEMBANTU PINTAR DOKUMEN & PEKELILING UUM (RAG)")
     print("=" * 75)
     print(res["answer"])
     print("\n" + "-" * 75)
     print(f"  [AI Engine: {res['provider']}]")
-    print("  Rujukan Sumber Rasmi UUM (Citations):")
-    for idx, s in enumerate(res["sources"], 1):
-        forms = s.get("required_forms", "-")
-        forms_str = f" | Borang: {forms}" if forms and forms != "-" else ""
-        print(f"   [{idx}] {s['circular_ref_no']} ({s['department']}) - M/S {s['page_number']}: {s['section_heading']}{forms_str}")
+    if is_en:
+        print("  Official UUM Sources & Citations:")
+        for idx, s in enumerate(res["sources"], 1):
+            forms = s.get("required_forms", "-")
+            forms_str = f" | Forms: {forms}" if forms and forms != "-" else ""
+            print(f"   [{idx}] {s['circular_ref_no']} ({s['department']}) - Page {s['page_number']}: {s['section_heading']}{forms_str}")
+    else:
+        print("  Rujukan Sumber Rasmi UUM (Citations):")
+        for idx, s in enumerate(res["sources"], 1):
+            forms = s.get("required_forms", "-")
+            forms_str = f" | Borang: {forms}" if forms and forms != "-" else ""
+            print(f"   [{idx}] {s['circular_ref_no']} ({s['department']}) - M/S {s['page_number']}: {s['section_heading']}{forms_str}")
     print("=" * 75 + "\n")
 
