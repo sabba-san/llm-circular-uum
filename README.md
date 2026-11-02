@@ -21,6 +21,7 @@ Users can query the system in natural language (Bahasa Melayu & English) to retr
 
 ```
 llm_uum/
+├── app.py                         # 🌐 Streamlit Interactive Web Application (Phase 4)
 ├── pipeline.py                    # 🚀 Unified Automation Pipeline (Sort + Ingest in 1-Click)
 ├── ask.py                         # 🔍 Ask Assistant CLI (One-shot & Interactive Mode)
 ├── ingest.py                      # ⚡ Chunking & Database Ingestion CLI
@@ -87,6 +88,25 @@ Edit `.env` to configure your keys:
 - **`OPENROUTER_API_KEY`**: (Optional fallback) Get your key at [OpenRouter](https://openrouter.ai).
 
 > **Note**: Even **without any API keys configured**, the system works out-of-the-box in **Offline Extractive Mode**, returning exact clause citations and mandatory forms from the local index!
+
+---
+
+## 🌐 Phase 4: Interactive Web Application (Streamlit)
+
+Launch the browser-based dashboard for interactive chat, master catalog filtering, and 1-click supervisor presentation demos:
+
+```bash
+./venv/bin/streamlit run app.py
+```
+*(Or if your virtual environment is activated: `streamlit run app.py`)*.
+
+Then open **`http://localhost:8501`** in your browser.
+
+### Key Web Features:
+- **💬 Smart RAG Chatbot**: Chat in English or Bahasa Melayu with conversational memory, expandable clause citations with page numbers, and required form checklists.
+- **📋 Master Document Catalog**: Filter and browse all 175 circulars and 74 forms by PTJ, Status (`Active` vs `Superseded`), or Category, with live search and 1-click Excel download.
+- **🎓 Supervisor Presentation Mode**: Sidebar with 1-click test scenarios (*GRA Appointment*, *External Speaker Rates*, *Travel Advance*, *Asset Disposal*).
+- **🔄 In-App Pipeline Sync**: 1-click button to trigger `pipeline.py` when new documents are added.
 
 ---
 
@@ -202,4 +222,4 @@ Synthesized Answer with Exact Citations & Mandatory Forms Checklist
 | **Phase 1** | Data Collection & Cataloging (RMC, Bendahari, ICC, JUU) | ✅ Completed |
 | **Phase 2** | Cleaning, Parsing, Chunking & Dual Database Setup (PostgreSQL + SQLite) | ✅ Completed |
 | **Phase 3** | Hybrid RAG Pipeline, Multi-API Fallback & CLI Assistant | ✅ Completed |
-| **Phase 4** | Web UI (Streamlit / FastHTML) & Final Presentation | 🔄 Next Step |
+| **Phase 4** | Web UI (Streamlit Dashboard) & Final Supervisor Presentation | ✅ Completed |
