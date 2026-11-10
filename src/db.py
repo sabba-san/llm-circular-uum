@@ -9,6 +9,8 @@ Supports:
 import os
 import sys
 import logging
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from src.ai_provider import load_env, find_root_dir
 
 load_env()
@@ -46,9 +48,37 @@ CREATE TABLE IF NOT EXISTS required_documents_forms (
     notes TEXT
 );
 
+CREATE TABLE IF NOT EXISTS college_documents (
+    id VARCHAR(50) PRIMARY KEY,
+    title TEXT NOT NULL,
+    college VARCHAR(100) NOT NULL,
+    school VARCHAR(100),
+    category VARCHAR(100),
+    academic_level VARCHAR(50),
+    academic_session VARCHAR(50),
+    status VARCHAR(20) DEFAULT 'Active',
+    file_format VARCHAR(20),
+    file_path TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS college_forms (
+    id VARCHAR(50) PRIMARY KEY,
+    form_code VARCHAR(100) NOT NULL,
+    form_title TEXT NOT NULL,
+    college VARCHAR(100) NOT NULL,
+    school VARCHAR(100),
+    form_category VARCHAR(100),
+    target_user VARCHAR(100),
+    academic_session VARCHAR(50),
+    file_format VARCHAR(20),
+    file_path TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS document_chunks (
     chunk_id VARCHAR(50) PRIMARY KEY,
-    circular_id VARCHAR(50) REFERENCES circulars(id) ON DELETE CASCADE,
+    circular_id VARCHAR(50),
     circular_ref_no VARCHAR(255),
     department VARCHAR(100),
     status VARCHAR(20),
@@ -56,8 +86,14 @@ CREATE TABLE IF NOT EXISTS document_chunks (
     page_number INT,
     chunk_text TEXT NOT NULL,
     required_forms TEXT,
+    doc_type VARCHAR(50) DEFAULT 'circular',
+    college VARCHAR(100),
+    school VARCHAR(100),
+    academic_level VARCHAR(50),
+    academic_session VARCHAR(50),
+    target_user VARCHAR(100),
     embedding vector(768),
-    tsv_content tsvector GENERATED ALWAYS AS (to_tsvector('simple', chunk_text || ' ' || COALESCE(section_heading, '') || ' ' || COALESCE(circular_ref_no, ''))) STORED
+    tsv_content tsvector GENERATED ALWAYS AS (to_tsvector('simple', chunk_text || ' ' || COALESCE(section_heading, '') || ' ' || COALESCE(circular_ref_no, '') || ' ' || COALESCE(college, '') || ' ' || COALESCE(school, ''))) STORED
 );
 
 CREATE INDEX IF NOT EXISTS idx_chunks_vec ON document_chunks USING hnsw (embedding vector_cosine_ops);
@@ -94,6 +130,32 @@ CREATE TABLE IF NOT EXISTS required_documents_forms (
     notes TEXT
 );
 
+CREATE TABLE IF NOT EXISTS college_documents (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    college TEXT NOT NULL,
+    school TEXT,
+    category TEXT,
+    academic_level TEXT,
+    academic_session TEXT,
+    status TEXT DEFAULT 'Active',
+    file_format TEXT,
+    file_path TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS college_forms (
+    id TEXT PRIMARY KEY,
+    form_code TEXT NOT NULL,
+    form_title TEXT NOT NULL,
+    college TEXT NOT NULL,
+    school TEXT,
+    form_category TEXT,
+    target_user TEXT,
+    academic_session TEXT,
+    file_format TEXT,
+    file_path TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS document_chunks (
     chunk_id TEXT PRIMARY KEY,
     circular_id TEXT,
@@ -104,6 +166,12 @@ CREATE TABLE IF NOT EXISTS document_chunks (
     page_number INTEGER,
     chunk_text TEXT NOT NULL,
     required_forms TEXT,
+    doc_type TEXT DEFAULT 'circular',
+    college TEXT,
+    school TEXT,
+    academic_level TEXT,
+    academic_session TEXT,
+    target_user TEXT,
     embedding_json TEXT
 );
 
@@ -112,9 +180,35 @@ CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
     circular_ref_no,
     department,
     section_heading,
-    chunk_text
+    chunk_text,
+    college,
+    school
 );
 """
+
+def ensure_schema_migrations(con, is_postgres=False):
+    """Safely add college columns to document_chunks if they do not exist."""
+    cols_to_add = [
+        ("doc_type", "VARCHAR(50) DEFAULT 'circular'"),
+        ("college", "VARCHAR(100)"),
+        ("school", "VARCHAR(100)"),
+        ("academic_level", "VARCHAR(50)"),
+        ("academic_session", "VARCHAR(50)"),
+        ("target_user", "VARCHAR(100)")
+    ] if is_postgres else [
+        ("doc_type", "TEXT DEFAULT 'circular'"),
+        ("college", "TEXT"),
+        ("school", "TEXT"),
+        ("academic_level", "TEXT"),
+        ("academic_session", "TEXT"),
+        ("target_user", "TEXT")
+    ]
+    cur = con.cursor()
+    for col_name, col_type in cols_to_add:
+        try:
+            cur.execute(f"ALTER TABLE document_chunks ADD COLUMN {col_name} {col_type};")
+        except Exception:
+            pass  # column already exists
 
 def setup_postgresql(db_url):
     """Setup PostgreSQL database tables and pgvector extension."""
@@ -125,6 +219,7 @@ def setup_postgresql(db_url):
         con.autocommit = True
         cur = con.cursor()
         cur.execute(POSTGRES_SCHEMA)
+        ensure_schema_migrations(con, is_postgres=True)
         logger.info("✓ PostgreSQL schema initialized successfully with pgvector & FTS indexes!")
         cur.close()
         con.close()
@@ -140,9 +235,12 @@ def setup_sqlite(sqlite_path=None):
         root_dir = find_root_dir()
         sqlite_path = os.path.join(root_dir, "data", "uum_knowledge.db")
     os.makedirs(os.path.dirname(sqlite_path), exist_ok=True)
-    con = sqlite3.connect(sqlite_path)
+    con = sqlite3.connect(sqlite_path, timeout=60.0)
+    con.execute("PRAGMA journal_mode=WAL;")
+    con.execute("PRAGMA busy_timeout=60000;")
     cur = con.cursor()
     cur.executescript(SQLITE_SCHEMA)
+    ensure_schema_migrations(con, is_postgres=False)
     con.commit()
     con.close()
     logger.info(f"✓ Local SQLite database initialized at: {sqlite_path}")

@@ -13,7 +13,8 @@ import sys
 import time
 import argparse
 from src.tracker_sorter import main as run_sorter
-from src.ingestion import run_ingestion
+from src.ingestion import run_ingestion as run_circular_ingestion
+from src.college_ingestion import run_college_ingestion
 
 def main():
     parser = argparse.ArgumentParser(
@@ -44,7 +45,10 @@ def main():
         sys.argv = sys_argv_backup
 
     print("\n[STEP 2/2] Updating Search Index & Vector Embeddings...")
-    run_ingestion(force_reembed=args.force_reembed)
+    print("  -> Ingesting Circulars & Financial Guidelines...")
+    run_circular_ingestion(force_reembed=args.force_reembed)
+    print("  -> Ingesting College Academic Handbooks, Catalogues & Forms...")
+    run_college_ingestion(force_reembed=args.force_reembed)
 
     elapsed = time.time() - start_time
     print("\n" + "=" * 75)

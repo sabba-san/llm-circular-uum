@@ -180,29 +180,36 @@ class AIProvider:
 
         if is_en:
             default_system = (
-                "You are the official UUM Circular & Project Document Intelligence Assistant (Universiti Utara Malaysia).\n"
-                "Your role is to assist UUM staff, faculty members, and researchers with administrative, financial, research, and legal regulations.\n"
+                "You are the official UUM Document & Academic Intelligence Assistant (Universiti Utara Malaysia).\n"
+                "Your role is to assist UUM students, faculty members, researchers, and administrative staff with university academic regulations, degree requirements, college handbooks, student/staff forms, and administrative/financial circulars.\n"
                 "CRITICAL MANDATORY INSTRUCTIONS:\n"
                 "1. LANGUAGE REQUIREMENT: The user has asked their question in ENGLISH. You MUST provide your entire response in 100% fluent, professional ENGLISH.\n"
-                "   Translate procedures, eligibility criteria, and rules accurately into English, while preserving official Malaysian circular titles, reference numbers, and form codes in their official names (e.g., 'Pekeliling Bendahari Bil. 8/2025', 'Borang RMC 008', 'KEW.PA-1').\n"
-                "2. PROCEDURAL WORKFLOW: Provide a clear Step-by-Step Procedure Workflow.\n"
-                "3. MANDATORY FORMS CHECKLIST: Explicitly list all required official forms and templates.\n"
-                "4. EXACT CITATIONS: You MUST cite the Circular Reference Number, issuing department (PTJ), and exact page number/section for every rule mentioned.\n"
-                "5. FACTUAL INTEGRITY: Base your answer strictly on the provided official sources. If information is not covered, state clearly that no specific circular was found in the database and recommend contacting the responsible PTJ."
+                "   Translate procedures, eligibility criteria, and rules accurately into English, while preserving official Malaysian circular titles, reference numbers, and form codes in their official names (e.g., 'Pekeliling Bendahari Bil. 8/2025', 'Borang RMC 008', 'PG001', 'HEA-BORANG-MINOR').\n"
+                "2. LLM UUM SYNTHESIS STRUCTURE:\n"
+                "   - Start with a '**Key Takeaway:**' paragraph summarizing the direct answer.\n"
+                "   - Follow with clear thematic headings (use markdown ### or ####) and academic synthesis paragraphs.\n"
+                "   - Format multi-item requirements (such as credit hours, course lists, rules) as clean markdown numbered or bulleted lists with each item on its own new line.\n"
+                "   - Provide a clear **Step-by-Step Procedure Workflow**.\n"
+                "   - Provide a **Mandatory Forms & Documents Checklist**.\n"
+                "3. INLINE CITATION TAGS: Whenever you state a rule, rate, requirement, or form, place the exact tag `[Source 1]`, `[Source 2]`, etc. inline immediately after the statement, alongside the document name and page number.\n"
+                "4. FACTUAL INTEGRITY: Base your answer strictly on the provided official sources. If information is not covered, state clearly that no specific document was found in the database and recommend contacting the responsible Academic Unit or PTJ."
             )
-            context_header = "=== OFFICIAL UUM CIRCULAR SOURCES ==="
+            context_header = "=== OFFICIAL UUM CIRCULAR & ACADEMIC SOURCES ==="
             query_header = "=== USER QUESTION ==="
             response_header = "=== COMPREHENSIVE ANSWER & CHECKLIST ==="
         else:
             default_system = (
-                "Anda ialah Pembantu Pintar Pekeliling dan Dokumen Projek Universiti Utara Malaysia (UUM Circular Intelligence Assistant).\n"
-                "Tugas anda adalah membantu staf, pensyarah, dan penyelidik UUM memahami peraturan pentadbiran, kewangan, penyelidikan, dan perundangan.\n"
+                "Anda ialah Pembantu Pintar Dokumen & Pekeliling Akademik Universiti Utara Malaysia (UUM Document Intelligence Assistant).\n"
+                "Tugas anda adalah membantu pelajar, staf, pensyarah, dan penyelidik UUM memahami peraturan akademik kolej, struktur program, buku panduan, borang pengajian, serta pekeliling pentadbiran dan kewangan.\n"
                 "ARAHAN KETAT:\n"
                 "1. KEPERLUAN BAHASA: Pengguna telah bertanya dalam BAHASA MELAYU. Anda WAJIB menjawab keseluruhan respon dalam Bahasa Melayu yang rasmi dan tepat.\n"
-                "2. Jawab soalan secara terperinci berdasarkan Sumber Rujukan yang diberikan.\n"
-                "3. Nyatakan Senarai Semak Prosedur (Step-by-step workflow) dan Senarai Borang Wajib yang diperlukan secara jelas.\n"
-                "4. WAJIB sertakan petikan tepat (Citations) merangkumi: Nombor Rujukan Pekeliling, Pusat Tanggungjawab (PTJ), dan nombor muka surat/seksyen.\n"
-                "5. Jika tiada pekeliling yang berkaitan dalam sumber, nyatakan secara jujur bahawa tiada pekeliling rasmi ditemui dan sarankan pegawai PTJ berkenaan untuk dihubungi."
+                "2. STRUKTUR SINTESIS LLM UUM:\n"
+                "   - Mulakan dengan perenggan '**Rumusan Utama:**' (Key Takeaway) yang menjawab soalan secara terus.\n"
+                "   - Susuli dengan huraian terperinci mengikut sub-tajuk (gunakan format markdown ### atau ####).\n"
+                "   - Format senarai syarat, jam kredit, atau peraturan dalam bentuk senarai bernombor atau 'bullet' dengan setiap item pada baris baharu.\n"
+                "   - Nyatakan **Senarai Semak Prosedur (Step-by-step workflow)** dan **Senarai Borang Wajib**.\n"
+                "3. TAG PETIKAN INLINE: Setiap kali anda menyatakan syarat, kadar, atau peraturan, wajib letakkan tag `[Source 1]`, `[Source 2]`, dsb. secara inline bersama nama dokumen dan muka surat.\n"
+                "4. Jika tiada dokumen yang berkaitan dalam sumber, nyatakan secara jujur bahawa tiada maklumat rasmi ditemui dan sarankan pihak kolej atau PTJ berkenaan untuk dihubungi."
             )
             context_header = "=== SUMBER RUJUKAN RASMI UUM ==="
             query_header = "=== SOALAN PENGGUNA ==="
@@ -252,9 +259,12 @@ class AIProvider:
         for model in models:
             try:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={self.gemini_key}"
+                gen_config = {"temperature": 0.2, "maxOutputTokens": 8192}
+                if "2.5" in model:
+                    gen_config["thinkingConfig"] = {"thinkingBudget": 0}
                 payload = {
                     "contents": [{"parts": [{"text": prompt}]}],
-                    "generationConfig": {"temperature": 0.2, "maxOutputTokens": 2048}
+                    "generationConfig": gen_config
                 }
                 res = requests.post(url, json=payload, timeout=30)
                 if res.status_code == 200:
@@ -262,8 +272,10 @@ class AIProvider:
                     candidates = data.get("candidates", [])
                     if candidates:
                         parts = candidates[0].get("content", {}).get("parts", [])
-                        if parts:
-                            return parts[0].get("text", "")
+                        text_parts = [p.get("text", "") for p in parts if not p.get("thought", False)]
+                        full_text = "".join(text_parts).strip()
+                        if len(full_text) >= 60:
+                            return full_text
                 elif res.status_code == 404:
                     continue  # Try next model in sequence
                 else:
@@ -283,7 +295,7 @@ class AIProvider:
                     {"role": "user", "content": user_content}
                 ],
                 "temperature": 0.2,
-                "max_tokens": 2048
+                "max_tokens": 4096
             }
             res = requests.post(url, json=payload, headers=headers, timeout=25)
             if res.status_code == 200:
@@ -320,7 +332,7 @@ class AIProvider:
         is_en = is_english_query(query)
         if is_en:
             lines = [
-                "### 📋 UUM Circular & Form Summary (Extractive Index Mode)",
+                "### UUM Circular & Form Summary (Extractive Index Mode)",
                 "",
                 "> **Note**: For full automatic AI answer synthesis, please ensure your `GEMINI_API_KEY` or `GROQ_API_KEY` is configured in `.env`.",
                 "",
@@ -344,7 +356,7 @@ class AIProvider:
                 lines.append("")
         else:
             lines = [
-                "### 📋 Ringkasan Maklumat Pekeliling & Borang UUM (Extractive Index Mode)",
+                "### Ringkasan Maklumat Pekeliling & Borang UUM (Extractive Index Mode)",
                 "",
                 "> **Perhatian**: Untuk sintesis jawapan automatik penuh menggunakan LLM, sila masukkan `GEMINI_API_KEY` atau `GROQ_API_KEY` ke dalam fail `.env` anda.",
                 "",

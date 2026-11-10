@@ -26,7 +26,15 @@ env/
 
 # Local databases and environment keys
 data/*.db
+data/*.db-shm
+data/*.db-wal
+*.db-shm
+*.db-wal
 .env
+
+# Agent & Claude local symlinks
+.agents/
+.claude/
 
 # IDE & Editor settings
 .vscode/

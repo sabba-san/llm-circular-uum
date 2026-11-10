@@ -17,11 +17,13 @@ from src.ai_provider import AIProvider, load_env, find_root_dir, is_english_quer
 from src.search import UUMAssistant
 from src.tracker_sorter import main as run_sorter
 from src.ingestion import run_ingestion
+from src.college_ingestion import run_college_ingestion
 
 load_env()
 ROOT_DIR = find_root_dir()
 SQLITE_DB = os.path.join(ROOT_DIR, "data", "uum_knowledge.db")
 EXCEL_TRACKER = os.path.join(ROOT_DIR, "circular_Forms_tracker.xlsx")
+COLLEGE_EXCEL_TRACKER = os.path.join(ROOT_DIR, "college_documents_tracker.xlsx")
 
 # -----------------------------------------------------------------------------
 # Page Configuration & Styling
@@ -76,14 +78,25 @@ st.markdown("""
 # -----------------------------------------------------------------------------
 @st.cache_data(ttl=60)
 def load_catalog_data():
-    """Load circulars and forms tables from SQLite."""
+    """Load circulars, college docs and forms tables from SQLite."""
     if not os.path.exists(SQLITE_DB):
-        return pd.DataFrame(), pd.DataFrame(), {}
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), {}
     
-    con = sqlite3.connect(SQLITE_DB)
+    con = sqlite3.connect(SQLITE_DB, timeout=60.0)
     try:
         df_circ = pd.read_sql_query("SELECT * FROM circulars ORDER BY department, status, year DESC;", con)
         df_forms = pd.read_sql_query("SELECT * FROM required_documents_forms ORDER BY department, form_code;", con)
+        
+        try:
+            df_college_docs = pd.read_sql_query("SELECT * FROM college_documents ORDER BY college, school, academic_session DESC;", con)
+        except Exception:
+            df_college_docs = pd.DataFrame()
+
+        try:
+            df_college_forms = pd.read_sql_query("SELECT * FROM college_forms ORDER BY college, school, form_code;", con)
+        except Exception:
+            df_college_forms = pd.DataFrame()
+
         cur = con.cursor()
         cur.execute("SELECT count(*) FROM document_chunks;")
         total_chunks = cur.fetchone()[0]
@@ -97,9 +110,11 @@ def load_catalog_data():
             "active_circulars": active_circ,
             "superseded_circulars": superseded_circ,
             "total_forms": len(df_forms),
+            "total_college_docs": len(df_college_docs),
+            "total_college_forms": len(df_college_forms),
             "total_chunks": total_chunks
         }
-        return df_circ, df_forms, stats
+        return df_circ, df_forms, df_college_docs, df_college_forms, stats
     finally:
         con.close()
 
@@ -109,9 +124,9 @@ def load_catalog_data():
 with st.sidebar:
     st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Universiti_Utara_Malaysia_Logo.svg/1200px-Universiti_Utara_Malaysia_Logo.svg.png", width=140)
     st.markdown("### 🏛️ UUM Intelligence System")
-    st.markdown("**PTJ Coverage:**\n* RMC • Bendahari • ICC • JUU")
+    st.markdown("**Coverage:**\n* **PTJs:** RMC • Bendahari • ICC • JUU\n* **Colleges:** CAS • COB • COLGIS • HEA")
     
-    df_circ, df_forms, stats = load_catalog_data()
+    df_circ, df_forms, df_college_docs, df_college_forms, stats = load_catalog_data()
     
     st.markdown("---")
     st.markdown("#### 📊 Knowledge Base Stats")
@@ -119,7 +134,14 @@ with st.sidebar:
     with col1:
         st.metric("Circulars", stats.get("total_circulars", 0), f"{stats.get('active_circulars', 0)} Active")
     with col2:
-        st.metric("Forms", stats.get("total_forms", 0))
+        st.metric("Admin Forms", stats.get("total_forms", 0))
+
+    col3, col4 = st.columns(2)
+    with col3:
+        st.metric("College Docs", stats.get("total_college_docs", 0))
+    with col4:
+        st.metric("College Forms", stats.get("total_college_forms", 0))
+
     st.metric("Indexed Chunks", f"{stats.get('total_chunks', 0):,}", "768-d Vectors")
     
     ai_status = "Google Gemini Flash" if os.environ.get("GEMINI_API_KEY") else "Offline Extractive Engine"
@@ -133,6 +155,9 @@ with st.sidebar:
     benchmark_queries = {
         "🎓 GRA Appointment (English)": "What are the requirements and allowance ceilings to appoint a Graduate Research Assistant (GRA)?",
         "🎤 Speaker Honorarium (BM)": "Apakah kadar bayaran penceramah luar bagi sektor swasta?",
+        "💻 SOC IT Degree Curriculum (CAS)": "What are the core courses and credit requirements for Bachelor of Science in Information Technology with Honours at SOC?",
+        "📋 HEA Minor Registration": "Apakah prosedur dan borang yang diperlukan untuk permohonan pendaftaran kursus Minor di HEA?",
+        "📑 Postgraduate Proposal Notice (CAS)": "Which form should a student submit for Notice of Intention to Submit Research Proposal in SAPSP?",
         "✈️ Travel Advance (BM)": "Bagaimanakah prosedur permohonan pendahuluan diri untuk perjalanan rasmi?",
         "📦 Asset Disposal & KEW.PA (BM)": "Apakah proses dan borang yang diperlukan untuk pelupusan aset universiti?",
         "💼 Consultancy via RaIIS (English)": "What is the procedure for UUM staff consultancy projects funded by spin-off companies?",
@@ -144,10 +169,11 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("#### ⚡ Pipeline Management")
-    if st.button("🔄 Sync Pipeline (sort + ingest)", use_container_width=True):
-        with st.spinner("Running full automation pipeline..."):
+    if st.button("🔄 Sync Pipeline (sort + ingest all)", use_container_width=True):
+        with st.spinner("Running full automation pipeline (Circulars + Colleges)..."):
             run_sorter()
             run_ingestion()
+            run_college_ingestion()
             st.cache_data.clear()
             st.success("Pipeline successfully synced!")
             st.rerun()
@@ -243,16 +269,35 @@ with tab_catalog:
     st.markdown("### 📋 Master Document & Form Catalog Explorer")
     st.caption("Interactive browser for all cataloged administrative circulars and project forms across UUM PTJs.")
 
-    col_view, col_dl = st.columns([3, 1])
+    col_view, col_dl1, col_dl2 = st.columns([2.5, 1, 1])
     with col_view:
-        view_mode = st.radio("Select View:", ["📜 Pekeliling & Guidelines (Circulars)", "📑 Borang & Checklists (Forms)"], horizontal=True)
-    with col_dl:
+        view_mode = st.radio(
+            "Select View:",
+            [
+                "📜 Pekeliling (Circulars)",
+                "📑 Borang Pentadbiran (Admin Forms)",
+                "🎓 Dokumen Akademik (College Docs)",
+                "📋 Borang Kolej & Pelajar (College Forms)"
+            ],
+            horizontal=True
+        )
+    with col_dl1:
         if os.path.exists(EXCEL_TRACKER):
             with open(EXCEL_TRACKER, "rb") as f:
                 st.download_button(
-                    label="📥 Download Master Excel",
+                    label="📥 Tracker Pekeliling",
                     data=f.read(),
                     file_name="circular_Forms_tracker.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+    with col_dl2:
+        if os.path.exists(COLLEGE_EXCEL_TRACKER):
+            with open(COLLEGE_EXCEL_TRACKER, "rb") as f:
+                st.download_button(
+                    label="📥 Tracker Kolej",
+                    data=f.read(),
+                    file_name="college_documents_tracker.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True
                 )
@@ -289,8 +334,8 @@ with tab_catalog:
             hide_index=True
         )
 
-    else:
-        # Filters for forms
+    elif view_mode.startswith("📑"):
+        # Filters for admin forms
         fcol1, fcol2 = st.columns(2)
         with fcol1:
             depts = ["All"] + sorted(list(df_forms["department"].dropna().unique()))
@@ -315,6 +360,78 @@ with tab_catalog:
             use_container_width=True,
             hide_index=True
         )
+
+    elif view_mode.startswith("🎓"):
+        # Filters for college documents
+        if df_college_docs.empty:
+            st.info("No college documents loaded yet. Click 'Sync Pipeline' in the sidebar to ingest.")
+        else:
+            fcol1, fcol2, fcol3 = st.columns(3)
+            with fcol1:
+                cols = ["All"] + sorted(list(df_college_docs["college"].dropna().unique()))
+                sel_col = st.selectbox("Filter by College:", cols, key="cd_col")
+            with fcol2:
+                levels = ["All"] + sorted(list(df_college_docs["academic_level"].dropna().unique()))
+                sel_lvl = st.selectbox("Filter by Level:", levels, key="cd_lvl")
+            with fcol3:
+                search_cd = st.text_input("Search Title / School / Category:", placeholder="e.g. IT, SOC, Handbook, 2026", key="cd_search")
+
+            filtered_cd = df_college_docs.copy()
+            if sel_col != "All":
+                filtered_cd = filtered_cd[filtered_cd["college"] == sel_col]
+            if sel_lvl != "All":
+                filtered_cd = filtered_cd[filtered_cd["academic_level"] == sel_lvl]
+            if search_cd:
+                kw = search_cd.lower()
+                filtered_cd = filtered_cd[
+                    filtered_cd["title"].str.lower().str.contains(kw, na=False) |
+                    filtered_cd["school"].str.lower().str.contains(kw, na=False) |
+                    filtered_cd["category"].str.lower().str.contains(kw, na=False) |
+                    filtered_cd["academic_session"].str.lower().str.contains(kw, na=False)
+                ]
+
+            st.markdown(f"**Showing {len(filtered_cd)} of {len(df_college_docs)} college academic documents**")
+            st.dataframe(
+                filtered_cd[["id", "title", "college", "school", "category", "academic_level", "academic_session", "status", "file_format"]],
+                use_container_width=True,
+                hide_index=True
+            )
+
+    else:
+        # Filters for college forms
+        if df_college_forms.empty:
+            st.info("No college forms loaded yet. Click 'Sync Pipeline' in the sidebar to ingest.")
+        else:
+            fcol1, fcol2, fcol3 = st.columns(3)
+            with fcol1:
+                cols = ["All"] + sorted(list(df_college_forms["college"].dropna().unique()))
+                sel_cf_col = st.selectbox("Filter by College:", cols, key="cf_col")
+            with fcol2:
+                cats = ["All"] + sorted(list(df_college_forms["form_category"].dropna().unique()))
+                sel_cf_cat = st.selectbox("Filter by Category:", cats, key="cf_cat")
+            with fcol3:
+                search_cf = st.text_input("Search Form Code / Title / User:", placeholder="e.g. PG001, Practicum, Staff", key="cf_search")
+
+            filtered_cf = df_college_forms.copy()
+            if sel_cf_col != "All":
+                filtered_cf = filtered_cf[filtered_cf["college"] == sel_cf_col]
+            if sel_cf_cat != "All":
+                filtered_cf = filtered_cf[filtered_cf["form_category"] == sel_cf_cat]
+            if search_cf:
+                kw = search_cf.lower()
+                filtered_cf = filtered_cf[
+                    filtered_cf["form_code"].str.lower().str.contains(kw, na=False) |
+                    filtered_cf["form_title"].str.lower().str.contains(kw, na=False) |
+                    filtered_cf["target_user"].str.lower().str.contains(kw, na=False) |
+                    filtered_cf["school"].str.lower().str.contains(kw, na=False)
+                ]
+
+            st.markdown(f"**Showing {len(filtered_cf)} of {len(df_college_forms)} college forms**")
+            st.dataframe(
+                filtered_cf[["id", "form_code", "form_title", "college", "school", "form_category", "target_user", "academic_session", "file_format"]],
+                use_container_width=True,
+                hide_index=True
+            )
 
 # -----------------------------------------------------------------------------
 # TAB 3: System Architecture & PRD Roadmap
@@ -364,3 +481,4 @@ Google Gemini Flash Synthesis (100% Language Mirroring + Citations)
     """)
 
 st.caption("UUM Circular & Project Document Intelligence System • Prepared for Ahmad Abbas & Lia • Universiti Utara Malaysia")
+

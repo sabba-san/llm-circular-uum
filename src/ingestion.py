@@ -188,7 +188,8 @@ def run_ingestion(force_reembed=False):
 
     if not use_postgres:
         setup_sqlite(SQLITE_DB)
-        sqlite_con = sqlite3.connect(SQLITE_DB)
+        sqlite_con = sqlite3.connect(SQLITE_DB, timeout=60.0)
+        sqlite_con.execute("PRAGMA busy_timeout = 60000;")
         logger.info(f"Using SQLite database: {SQLITE_DB}")
 
     # 1. Ingest Circulars
