@@ -414,7 +414,7 @@
   }
 
   // ==================== Document Inspector Viewer Controller ====================
-  function openDocumentInInspector(docMeta, cardIdx = null) {
+  function openDocumentInInspector(docMeta, cardIdx = null, switchTab = true) {
     if (!docMeta) return;
     state.currentDocInViewer = docMeta;
     state.activeCardIndex = cardIdx;
@@ -426,19 +426,56 @@
     // Ensure right pane is expanded
     if (dom.rightPane) dom.rightPane.classList.remove("collapsed");
 
-    // Switch right panel to Document Viewer tab
-    switchRightTab("viewer");
+    const title = docMeta.title || docMeta.circular_ref_no || "UUM Document";
+    const fmt = (docMeta.file_format || "PDF").toUpperCase();
+    const page = docMeta.page_number || 1;
+
+    if (dom.viewerDocTitle) dom.viewerDocTitle.textContent = title;
+    if (dom.viewerDocSub) {
+      dom.viewerDocSub.textContent = `${docMeta.department || docMeta.college || "UUM"} • Format: ${fmt} • Page ${page}`;
+    }
+
+    if (switchTab) {
+      switchRightTab("viewer");
+    }
+  }
+
+  function renderViewerContent() {
+    const docMeta = state.currentDocInViewer;
+    if (!docMeta) return;
 
     const docId = docMeta.doc_id || docMeta.circular_id;
     const title = docMeta.title || docMeta.circular_ref_no || "UUM Document";
     const fmt = (docMeta.file_format || "PDF").toUpperCase();
     const page = docMeta.page_number || 1;
 
-    dom.viewerDocTitle.textContent = title;
-    dom.viewerDocSub.textContent = `${docMeta.department || docMeta.college || "UUM"} • Format: ${fmt} • Page ${page}`;
-    dom.viewerActions.replaceChildren();
+    if (dom.viewerDocTitle) dom.viewerDocTitle.textContent = title;
+    if (dom.viewerDocSub) {
+      dom.viewerDocSub.textContent = `${docMeta.department || docMeta.college || "UUM"} • Format: ${fmt} • Page ${page}`;
+    }
+    if (dom.viewerActions) dom.viewerActions.replaceChildren();
 
-    const isSaved = state.savedItems.some((s) => s.chunk_id === docMeta.chunk_id || s.doc_id === docId);
+    // 1. Open in new tab button
+    const btnExternal = document.createElement("a");
+    btnExternal.className = "btn-action-icon";
+    btnExternal.href = `/api/document/${encodeURIComponent(docId)}/preview#page=${page}`;
+    btnExternal.target = "_blank";
+    btnExternal.rel = "noopener noreferrer";
+    btnExternal.title = "Open Document in New Tab";
+    btnExternal.innerHTML = '<svg class="icon-svg-sm" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+    if (dom.viewerActions) dom.viewerActions.appendChild(btnExternal);
+
+    // 2. Download button
+    const btnDownload = document.createElement("a");
+    btnDownload.className = "btn-action-icon";
+    btnDownload.href = `/api/document/${encodeURIComponent(docId)}/download`;
+    btnDownload.download = "";
+    btnDownload.title = "Download File";
+    btnDownload.innerHTML = '<svg class="icon-svg-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+    if (dom.viewerActions) dom.viewerActions.appendChild(btnDownload);
+
+    // 3. Save / Bookmark button
+    const isSaved = state.savedItems.some((s) => s.chunk_id === docMeta.chunk_id || (docId && s.doc_id === docId));
     const btnSave = document.createElement("button");
     btnSave.type = "button";
     btnSave.className = `btn-action-icon ${isSaved ? "saved" : ""}`;
@@ -446,10 +483,11 @@
     btnSave.innerHTML = isSaved ? ICONS.starFilled : ICONS.starOutline;
     btnSave.addEventListener("click", () => {
       toggleSaveItem(docMeta);
-      openDocumentInInspector(docMeta, cardIdx);
+      renderViewerContent();
     });
-    dom.viewerActions.appendChild(btnSave);
+    if (dom.viewerActions) dom.viewerActions.appendChild(btnSave);
 
+    if (!dom.viewerBody) return;
     dom.viewerBody.replaceChildren();
 
     if (fmt === "PDF") {
@@ -483,11 +521,38 @@
         <div class="doc-sections-list">
           <div class="doc-section-card">
             <div class="doc-section-heading">Supporting Excerpt (Clause)</div>
-            <div class="doc-section-body">${escapeHtml(docMeta.chunk_text || "No preview text available.")}</div>
+            <div class="doc-section-body">${escapeHtml(docMeta.chunk_text || "Loading preview sections...")}</div>
           </div>
         </div>
       `;
       dom.viewerBody.appendChild(container);
+
+      // If chunk_text is missing (e.g. opened from catalog or form chip), fetch extracted sections from /api/doc/{docId}
+      if (!docMeta.chunk_text && docId) {
+        fetch(`/api/doc/${encodeURIComponent(docId)}`)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (!data || !data.sections || data.sections.length === 0) {
+              const bodyElem = container.querySelector(".doc-section-body");
+              if (bodyElem && !docMeta.chunk_text) bodyElem.textContent = "No text excerpt available for this document.";
+              return;
+            }
+            const sectionsList = container.querySelector(".doc-sections-list");
+            if (sectionsList) {
+              sectionsList.replaceChildren();
+              data.sections.slice(0, 15).forEach((sec) => {
+                const card = document.createElement("div");
+                card.className = "doc-section-card";
+                card.innerHTML = `
+                  <div class="doc-section-heading">${escapeHtml(sec.heading || `Page ${sec.page}`)}</div>
+                  <div class="doc-section-body">${escapeHtml(sec.text || "")}</div>
+                `;
+                sectionsList.appendChild(card);
+              });
+            }
+          })
+          .catch(() => {});
+      }
     }
   }
 
@@ -497,6 +562,9 @@
       dom.tabBtnRefs.classList.remove("active");
       dom.panelViewer.classList.remove("hidden");
       dom.panelRefs.classList.add("hidden");
+      if (state.currentDocInViewer) {
+        renderViewerContent();
+      }
     } else {
       dom.tabBtnRefs.classList.add("active");
       dom.tabBtnViewer.classList.remove("active");
@@ -745,8 +813,10 @@
         assistantTurn.querySelectorAll(".cite-pill").forEach((pill) => {
           pill.addEventListener("click", () => {
             const idx = parseInt(pill.dataset.srcIdx, 10);
+            const page = parseInt(pill.dataset.page, 10) || 1;
             if (data.sources && data.sources[idx]) {
-              openDocumentInInspector(data.sources[idx], idx);
+              const srcWithPage = { ...data.sources[idx], page_number: page };
+              openDocumentInInspector(srcWithPage, idx, true);
             }
           });
         });
@@ -757,7 +827,7 @@
             const fid = chip.dataset.formId;
             const targetForm = data.linked_forms.find((f) => f.doc_id === fid);
             if (targetForm) {
-              openDocumentInInspector(targetForm);
+              openDocumentInInspector(targetForm, null, true);
             }
           });
         });
@@ -765,9 +835,9 @@
         // Update Right References Pane
         renderReferenceCards(data.sources);
 
-        // Auto-open first cited source in Document Inspector if available
+        // Pre-populate first cited source in Document Inspector without forcing tab switch
         if (data.sources && data.sources.length > 0) {
-          openDocumentInInspector(data.sources[0], 0);
+          openDocumentInInspector(data.sources[0], 0, false);
           switchRightTab("refs"); // Keep on references tab initially so user sees the cards
         }
 

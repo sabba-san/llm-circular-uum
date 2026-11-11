@@ -1,29 +1,43 @@
 # TODO: PDF Viewer Troubleshooting & Enhancements (Abbas)
 
-**Date**: 2026-11-10  
+**Date**: 2026-11-10 (Updated: 2026-11-11)  
 **Author**: Ahmad Abbas  
-**Status**: Pending Investigation & Fix Tomorrow  
+**Status**: ✅ Resolved & Dockerized  
 
 ---
 
-## Issue Description
-The in-app PDF document inspector in the Right Pane (`#panelViewer`) is currently not displaying certain PDF previews reliably.
+## Issue Resolution Summary
 
-## Current Setup
-1. **Frontend**:
-   - `openDocumentInInspector(docMeta, cardIdx)` in `static/app.js` creates an `<iframe>` pointing to:
-     ```html
-     <iframe class="pdf-iframe" src="/api/document/{doc_id}/preview#page={page}"></iframe>
-     ```
-2. **Backend**:
-   - `api_serve_file()` in `web_app.py` resolves the `doc_id` from `UUMAssistant().doc_registry` and serves the file using Starlette's `FileResponse` with `media_type="application/pdf"` and `Content-Disposition="inline"`.
+### 1. Root Causes Identified & Fixed
+1. **Endpoint Route Mismatch**:
+   - `static/app.js` was requesting `/api/document/{doc_id}/preview` and `/api/document/{doc_id}/download`, but `web_app.py` only had `/api/file/{doc_id}` mapped.
+   - **Fix**: Added explicit `/api/document/{doc_id}/preview` and `/api/document/{doc_id}/download` routes in `web_app.py`, with code/path fallback resolution.
+2. **Hidden Iframe Initialization Failure**:
+   - Post-search auto-preview mounted an `<iframe>` inside a hidden `#panelViewer` (`display: none`), causing PDF plugins in Chrome/Firefox to compute a 0x0 viewport.
+   - **Fix**: Refactored `openDocumentInInspector` and `switchRightTab` in `static/app.js` so viewer content is cleanly rendered while the panel is visible.
+3. **Non-Latin-1 Filenames Crash**:
+   - Documents with Unicode characters (such as en-dashes `–` in `CDOC-CLG-014` and `CDOC-CLG-015`) crashed Starlette's Latin-1 header serializer with `UnicodeEncodeError`.
+   - **Fix**: Sanitized the ASCII fallback parameter in `Content-Disposition` while using RFC 5987 `filename*=UTF-8''` for unicode names.
+4. **Enhanced Viewer Actions & Citation Page Jumping**:
+   - Added **Open in New Tab** and **Download** action buttons to the Document Viewer toolbar.
+   - Wired citation pill clicks to open exact cited pages directly (`#page=N`).
+   - Added dynamic extraction fetching for Office forms (.docx/.xlsx) that lack pre-extracted chunk text.
 
-## Areas to Investigate & Fix Tomorrow
-1. **File Path Resolution**:
-   - Check if the document path stored in SQLite / `doc_registry` exists for all files in `circular_forms/` and `circular_forms/College_documents/`.
-   - Verify case-sensitivity and relative vs absolute paths on Linux.
-2. **Iframe / Content Security**:
-   - Check if modern browser sandbox or headers (`X-Frame-Options: SAMEORIGIN`) interfere with the PDF viewer iframe when testing on different hosts/ports.
-   - Consider integrating Mozilla's **PDF.js** (viewer.html) for guaranteed cross-browser rendering if native browser PDF plugins fail.
-3. **Download vs Inline Preview**:
-   - Verify that all headers send `inline` rather than triggering attachment downloads.
+---
+
+## Docker Deployment
+
+The application is fully containerized:
+- **`Dockerfile`**: Minimal `python:3.12-slim` image with `poppler-utils` (`pdftotext`, `pdfimages`, `pdftoppm`), `tesseract-ocr`, and `curl`.
+- **`docker-compose.yml`**: 1-click startup with persistent `./data` and `./circular_forms` mounts on port 8000.
+- **`docker-entrypoint.sh`**: Auto-verifies SQLite knowledge base before launching `uvicorn web_app:app`.
+
+### Quick Run Commands:
+```bash
+# Build and run with Docker Compose
+docker compose up -d --build
+
+# Or run with Docker CLI directly
+docker build -t llm-uum .
+docker run -p 8000:8000 --env-file .env -v $(pwd)/data:/app/data llm-uum
+```

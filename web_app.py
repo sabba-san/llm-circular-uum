@@ -134,10 +134,17 @@ async def api_doc_preview(request):
 async def api_serve_file(request):
     """Securely serve PDF, Image, or Word/Excel form by validated doc_id."""
     doc_id = request.path_params.get("doc_id", "").strip()
-    download = request.query_params.get("download", "0") == "1"
+    is_download_route = request.url.path.endswith("/download")
+    download = is_download_route or (request.query_params.get("download", "0") == "1")
 
     ast = get_assistant()
     meta = ast.doc_registry.get(doc_id)
+    if not meta:
+        for v in ast.doc_registry.values():
+            if v.get("code") == doc_id or v.get("file_path") == doc_id:
+                meta = v
+                break
+
     if not meta:
         return JSONResponse({"error": "Document ID not found."}, status_code=404)
 
@@ -158,14 +165,21 @@ async def api_serve_file(request):
     if not mime_type:
         mime_type = "application/octet-stream"
 
-    # Office files & archives download as attachment; PDFs & images render inline unless ?download=1
+    # Office files & archives download as attachment; PDFs & images render inline unless ?download=1 or /download route
     is_inline_viewable = ext in (".pdf", ".png", ".jpg", ".jpeg") and not download
     disposition_type = "inline" if is_inline_viewable else "attachment"
+
+    # Sanitize ASCII filename to avoid Starlette Latin-1 header encoding crash on Unicode characters (e.g. en-dash)
+    ascii_fn = filename.encode("ascii", "ignore").decode("ascii").replace('"', "").strip()
+    if not ascii_fn:
+        ascii_fn = f"document{ext}"
     encoded_fn = quote(filename)
 
     headers = {
-        "Content-Disposition": f"{disposition_type}; filename=\"{filename}\"; filename*=UTF-8''{encoded_fn}",
+        "Content-Disposition": f"{disposition_type}; filename=\"{ascii_fn}\"; filename*=UTF-8''{encoded_fn}",
         "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "SAMEORIGIN",
+        "Accept-Ranges": "bytes",
     }
     return FileResponse(resolved_path, media_type=mime_type, headers=headers)
 
@@ -176,6 +190,8 @@ routes = [
     Route("/api/ask", endpoint=api_ask, methods=["POST"]),
     Route("/api/doc/{doc_id}", endpoint=api_doc_preview, methods=["GET"]),
     Route("/api/file/{doc_id}", endpoint=api_serve_file, methods=["GET"]),
+    Route("/api/document/{doc_id}/preview", endpoint=api_serve_file, methods=["GET"]),
+    Route("/api/document/{doc_id}/download", endpoint=api_serve_file, methods=["GET"]),
     Mount("/static", app=StaticFiles(directory=STATIC_DIR), name="static"),
 ]
 
@@ -183,6 +199,7 @@ app = Starlette(debug=False, routes=routes)
 
 if __name__ == "__main__":
     import uvicorn
+    host = os.environ.get("HOST", "127.0.0.1")
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("web_app:app", host="127.0.0.1", port=port, reload=True)
+    uvicorn.run("web_app:app", host=host, port=port, reload=True)
 
