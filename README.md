@@ -40,6 +40,10 @@ llm_uum/
 │   └── tracker_sorter.py          # Auto-Sorter, OCR fallback, & Tracker Generator
 │
 ├── docs/                          # 📄 System Documentation
+│   ├── LLM_UUM_Proposal.md        # 📋 Industrial Training Proposal (Humanized Markdown)
+│   ├── LLM_UUM_Proposal.docx      # 📄 Industrial Training Proposal (Word .docx)
+│   ├── LLM_UUM_Proposal_Original.docx # 🔒 Original Proposal Backup
+│   ├── TEAM_SYNC_GUIDE.md         # 🔄 Teammate & Friend 1-Click Upgrade Guide
 │   └── PRD_... (LLM).docx         # Official System PRD & Specification
 │
 ├── data/                          # 💾 Local Knowledge Base & Pre-extracted Cache
@@ -91,16 +95,29 @@ Edit `.env` to configure your keys:
 
 ---
 
-## 🌐 Phase 4: Interactive Web Application (Streamlit)
+## 🏛️ Web Interfaces
 
-Launch the browser-based dashboard for interactive chat, master catalog filtering, and 1-click supervisor presentation demos:
+### 1. 3-Pane AI Copilot & Document Inspector (`web_app.py` — Port 8000)
+The primary enterprise web interface featuring a 3-pane layout, conversational chat dock, inline citation jumping, and live side-by-side PDF viewer:
 
 ```bash
-./venv/bin/streamlit run app.py
-```
-*(Or if your virtual environment is activated: `streamlit run app.py`)*.
+# Run natively
+python3 -m uvicorn web_app:app --host 0.0.0.0 --port 8000 --reload
 
-Then open **`http://localhost:8501`** in your browser.
+# Or run via Docker Compose (1-Click)
+docker compose up -d --build
+```
+Open **`http://localhost:8000`** in your browser.
+
+> 🔄 **Teammate or Friend Sync**: If a team member's screen is showing the old single-page "UUM Consensus" search portal (249 docs), see the [Teammate & Friend Sync Guide](docs/TEAM_SYNC_GUIDE.md) to upgrade to the full 689-doc 3-pane platform in 1 click!
+
+### 2. Streamlit Dashboard & Catalog Explorer (`app.py` — Port 8501)
+Browser-based dashboard for interactive catalog management, Excel exporting, and 1-click supervisor presentation demos:
+
+```bash
+streamlit run app.py
+```
+Open **`http://localhost:8501`** in your browser.
 
 ### Key Web Features:
 - **💬 Smart RAG Chatbot**: Chat in English or Bahasa Melayu with conversational memory, expandable clause citations with page numbers, and required form checklists.
