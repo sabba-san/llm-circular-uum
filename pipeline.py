@@ -6,49 +6,70 @@ Chains:
   2. Incremental Document Chunking & Vector Search Indexing (ingest.py)
 
 Usage:
-    python3 pipeline.py [--clean] [--force-reembed] [--force-ocr]
+    python3 pipeline.py [--all | --circulars-only | --college-only] [--clean] [--force-reembed] [--force-ocr]
 """
 
 import sys
 import time
 import argparse
 from src.tracker_sorter import main as run_sorter
+from src.college_tracker import main as run_college_tracker
 from src.ingestion import run_ingestion as run_circular_ingestion
 from src.college_ingestion import run_college_ingestion
+
+
+def _run_with_argv(fn, argv):
+    """Invoke a CLI main() with a temporary sys.argv list."""
+    sys_argv_backup = sys.argv
+    sys.argv = argv
+    try:
+        fn()
+    finally:
+        sys.argv = sys_argv_backup
+
 
 def main():
     parser = argparse.ArgumentParser(
         description="Unified Automation Pipeline for UUM Circular & Project Document Intelligence System"
     )
+    scope_group = parser.add_mutually_exclusive_group()
+    scope_group.add_argument("--all", action="store_true", help="Sync both PTJ circulars and college documents (default)")
+    scope_group.add_argument("--circulars-only", action="store_true", help="Sync only PTJ circulars and forms")
+    scope_group.add_argument("--college-only", action="store_true", help="Sync only college academic documents and forms")
     parser.add_argument("--clean", action="store_true", help="Remove Windows artifact files (:Zone.Identifier / desktop.ini)")
     parser.add_argument("--force-ocr", action="store_true", help="Force OCR re-extraction on all documents")
     parser.add_argument("--force-reembed", action="store_true", help="Force re-generation of all vector embeddings")
     args = parser.parse_args()
+
+    run_circulars = not args.college_only
+    run_college = not args.circulars_only
 
     start_time = time.time()
     print("\n" + "=" * 75)
     print("  🚀 UUM DOCUMENT INTELLIGENCE — UNIFIED AUTOMATION PIPELINE")
     print("=" * 75)
 
-    print("\n[STEP 1/2] Scanning circular_forms/ and Updating Master Tracker...")
-    sys_argv_backup = sys.argv
-    sorter_args = ["sort.py"]
-    if args.clean:
-        sorter_args.append("--clean")
-    if args.force_ocr:
-        sorter_args.append("--force-ocr")
-    sys.argv = sorter_args
+    print("\n[STEP 1/2] Scanning Documents & Updating Master Trackers...")
+    if run_circulars:
+        sorter_args = ["sort.py"]
+        if args.clean:
+            sorter_args.append("--clean")
+        if args.force_ocr:
+            sorter_args.append("--force-ocr")
+        print("  -> Updating PTJ Circulars & Forms Tracker...")
+        _run_with_argv(run_sorter, sorter_args)
 
-    try:
-        run_sorter()
-    finally:
-        sys.argv = sys_argv_backup
+    if run_college:
+        print("  -> Updating College Documents & Forms Tracker...")
+        _run_with_argv(run_college_tracker, ["college_tracker.py"])
 
     print("\n[STEP 2/2] Updating Search Index & Vector Embeddings...")
-    print("  -> Ingesting Circulars & Financial Guidelines...")
-    run_circular_ingestion(force_reembed=args.force_reembed)
-    print("  -> Ingesting College Academic Handbooks, Catalogues & Forms...")
-    run_college_ingestion(force_reembed=args.force_reembed)
+    if run_circulars:
+        print("  -> Ingesting Circulars & Financial Guidelines...")
+        run_circular_ingestion(force_reembed=args.force_reembed)
+    if run_college:
+        print("  -> Ingesting College Academic Handbooks, Catalogues & Forms...")
+        run_college_ingestion(force_reembed=args.force_reembed)
 
     elapsed = time.time() - start_time
     print("\n" + "=" * 75)

@@ -1,0 +1,328 @@
+[
+  {
+    "id": "EN-01",
+    "direction": "en",
+    "query": "RMC 008 graduate research assistant GRA appointment checklist and allowance",
+    "scope": "RMC",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Research Management"},
+    "relevant_docs": {"CIRC-RMC-156": 2, "CIRC-RMC-157": 1}
+  },
+  {
+    "id": "EN-02",
+    "direction": "en",
+    "query": "Digital Society Research Grant DSRG DSRGX MCMC 2025 eligibility and guidelines",
+    "scope": "RMC",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Research Grant"},
+    "relevant_docs": {"CIRC-RMC-168": 2, "CIRC-RMC-150": 1}
+  },
+  {
+    "id": "EN-03",
+    "direction": "en",
+    "query": "Bachelor of Science in Information Technology with Honours SOC curriculum and credit requirements",
+    "scope": "CAS",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "academic_session": "2026/2027"},
+    "relevant_docs": {"CDOC-CAS-028": 2, "CDOC-CAS-015": 1}
+  },
+  {
+    "id": "EN-04",
+    "direction": "en",
+    "query": "Postgraduate Academic Handbook 2026 edition graduation and thesis requirements",
+    "scope": "HEA",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "academic_session": "2026"},
+    "relevant_docs": {"CDOC-UNI-005": 2}
+  },
+  {
+    "id": "EN-05",
+    "direction": "en",
+    "query": "Academic Calendar for Academic Session 2026/2027 UUM Sintok and UUMKL",
+    "scope": "HEA",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "academic_session": "2026/2027"},
+    "relevant_docs": {"CDOC-UNI-001": 2, "CDOC-UNI-002": 1}
+  },
+  {
+    "id": "EN-06",
+    "direction": "en",
+    "query": "Practicum guidelines for employers hosting UUM students",
+    "scope": "HEA",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Practicum"},
+    "relevant_docs": {"CDOC-UNI-013": 2, "CDOC-CLG-018": 1}
+  },
+  {
+    "id": "EN-07",
+    "direction": "en",
+    "query": "Visiting Scholars emolument payment dates Bursar Circular No 15/2015",
+    "scope": "Bendahari",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Emolument"},
+    "relevant_docs": {"CIRC-BEN-048": 2, "CIRC-BEN-049": 1}
+  },
+  {
+    "id": "EN-08",
+    "direction": "en",
+    "query": "Bachelor of Philosophy Law and Business BPLB Honours School of Law handbook",
+    "scope": "COLGIS",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "academic_session": "2026/2027"},
+    "relevant_docs": {"CDOC-CLG-004": 2, "CDOC-CLG-005": 1}
+  },
+  {
+    "id": "EN-09",
+    "direction": "en",
+    "query": "Bachelor of Muamalat Administration Islamic Business School IBS programme structure",
+    "scope": "COB",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "academic_session": "2026/2027"},
+    "relevant_docs": {"CDOC-COB-001": 2}
+  },
+  {
+    "id": "EN-10",
+    "direction": "en",
+    "query": "INTAFF guidelines for practicum report School of International Studies",
+    "scope": "COLGIS",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "academic_session": "2024"},
+    "relevant_docs": {"CDOC-CLG-026": 2, "CDOC-CLG-022": 1}
+  },
+  {
+    "id": "EN-11",
+    "direction": "en",
+    "query": "Bachelor of Marketing Honours School of Business Management SBM handbook 2026/2027",
+    "scope": "COB",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "academic_session": "2026/2027"},
+    "relevant_docs": {"CDOC-COB-003": 2}
+  },
+  {
+    "id": "EN-12",
+    "direction": "en",
+    "query": "Undergraduate Academic Research Paper ARP guidelines SOIS COLGIS",
+    "scope": "COLGIS",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "academic_session": "2025/2026"},
+    "relevant_docs": {"CDOC-CLG-024": 2, "CDOC-CLG-025": 1}
+  },
+
+  {
+    "id": "BM-01",
+    "direction": "bm",
+    "query": "Apakah garis panduan pelaksanaan polisi tanpa tunai cashless policy di PTJ UUM?",
+    "scope": "Bendahari",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Financial Policy"},
+    "relevant_docs": {"CIRC-BEN-010": 2, "CIRC-BEN-011": 1}
+  },
+  {
+    "id": "BM-02",
+    "direction": "bm",
+    "query": "Berapakah kadar jamuan bagi urusan rasmi keraian pejabat dan kegiatan pelajar UUM?",
+    "scope": "Bendahari",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Entertainment & Claims"},
+    "relevant_docs": {"CIRC-BEN-015": 2}
+  },
+  {
+    "id": "BM-03",
+    "direction": "bm",
+    "query": "Berapakah kadar bayaran saguhati pensyarah penceramah dan fasilitator sambilan?",
+    "scope": "Bendahari",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Honorarium"},
+    "relevant_docs": {"CIRC-BEN-080": 2}
+  },
+  {
+    "id": "BM-04",
+    "direction": "bm",
+    "query": "Bagaimana prosedur bayaran dan layanan perbelanjaan melalui kad kredit korporat?",
+    "scope": "Bendahari",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Corporate Card"},
+    "relevant_docs": {"CIRC-BEN-012": 2}
+  },
+  {
+    "id": "BM-05",
+    "direction": "bm",
+    "query": "Apakah garis panduan permohonan kod QR dan pautan ePay UUM bagi pembayaran kepada universiti?",
+    "scope": "Bendahari",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Payment Channels"},
+    "relevant_docs": {"CIRC-BEN-011": 2, "CIRC-BEN-010": 1}
+  },
+  {
+    "id": "BM-06",
+    "direction": "bm",
+    "query": "Apakah panduan kod perbelanjaan vot 21000 perjalanan dan penyelidikan bagi geran penyelidikan?",
+    "scope": "RMC",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Research Expenditure"},
+    "relevant_docs": {"CIRC-RMC-167": 2, "CIRC-RMC-165": 1}
+  },
+  {
+    "id": "BM-07",
+    "direction": "bm",
+    "query": "Apakah syarat dan garis panduan perundingan Universiti Utara Malaysia RMC 2024?",
+    "scope": "RMC",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Consultancy"},
+    "relevant_docs": {"CIRC-RMC-152": 2}
+  },
+  {
+    "id": "BM-08",
+    "direction": "bm",
+    "query": "Apakah borang yang diperlukan untuk permohonan pendaftaran dan pertukaran kursus Minor di HEA?",
+    "scope": "HEA",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Student Forms"},
+    "relevant_docs": {"CFORM-UNI-005": 2, "CFORM-UNI-006": 2}
+  },
+  {
+    "id": "BM-09",
+    "direction": "bm",
+    "query": "Apakah peraturan pengijazahan untuk program Ijazah Sarjana Muda dengan Kepujian di UUM?",
+    "scope": "CAS",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Academic Regulations"},
+    "relevant_docs": {"CDOC-CAS-010": 2, "CDOC-CAS-001": 1}
+  },
+  {
+    "id": "BM-10",
+    "direction": "bm",
+    "query": "Apakah prosedur pemindahan lokasi aset dan inventori universiti mengikut Pekeliling Bendahari?",
+    "scope": "Bendahari",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Asset Management"},
+    "relevant_docs": {"CIRC-BEN-008": 2}
+  },
+  {
+    "id": "BM-11",
+    "direction": "bm",
+    "query": "Apakah senarai semak borang pertandingan inovasi ICC022 di Pusat Inovasi dan Pengkomersialan?",
+    "scope": "ICC",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Innovation Form"},
+    "relevant_docs": {"CIRC-CIRC-004": 2}
+  },
+  {
+    "id": "BM-12",
+    "direction": "bm",
+    "query": "Apakah garis panduan latihan ilmiah peringkat sarjana muda BPM dan BDM di Pusat Pengajian Kerajaan?",
+    "scope": "COLGIS",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Academic Project"},
+    "relevant_docs": {"CDOC-CLG-019": 2}
+  },
+
+  {
+    "id": "CROSS-01",
+    "direction": "cross_en_to_bm",
+    "query": "What are the university budget control and expenditure saving measures in Bursar Circular 9/2026?",
+    "scope": "Bendahari",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Budget Control"},
+    "relevant_docs": {"CIRC-BEN-016": 2, "CIRC-BEN-025": 1}
+  },
+  {
+    "id": "CROSS-02",
+    "direction": "cross_en_to_bm",
+    "query": "What are the meal and refreshment rates for official meetings and student activities?",
+    "scope": "Bendahari",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Entertainment & Claims"},
+    "relevant_docs": {"CIRC-BEN-015": 2}
+  },
+  {
+    "id": "CROSS-03",
+    "direction": "cross_en_to_bm",
+    "query": "How do I apply for a university internal research grant under Geran Universiti RMC?",
+    "scope": "RMC",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Research Grant"},
+    "relevant_docs": {"CIRC-RMC-165": 2, "CIRC-RMC-164": 1}
+  },
+  {
+    "id": "CROSS-04",
+    "direction": "cross_en_to_bm",
+    "query": "What is the corporate credit card cash advance and settlement procedure at UUM Bursar?",
+    "scope": "Bendahari",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Corporate Card"},
+    "relevant_docs": {"CIRC-BEN-012": 2}
+  },
+  {
+    "id": "CROSS-05",
+    "direction": "cross_en_to_bm",
+    "query": "What are the rules for non-disclosure agreement NDA ICC009 for project confidentiality?",
+    "scope": "ICC",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Confidentiality"},
+    "relevant_docs": {"CIRC-CIRC-003": 2}
+  },
+  {
+    "id": "CROSS-06",
+    "direction": "cross_en_to_bm",
+    "query": "What are the graduation requirements for Bachelor with Honours programmes at UUM CAS?",
+    "scope": "CAS",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Academic Regulations"},
+    "relevant_docs": {"CDOC-CAS-010": 2, "CDOC-CAS-001": 1}
+  },
+  {
+    "id": "CROSS-07",
+    "direction": "cross_bm_to_en",
+    "query": "Apakah syarat kelayakan geran penyelidikan masyarakat digital DSRG dan DSRGX MCMC?",
+    "scope": "RMC",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Research Grant"},
+    "relevant_docs": {"CIRC-RMC-168": 2}
+  },
+  {
+    "id": "CROSS-08",
+    "direction": "cross_bm_to_en",
+    "query": "Bilakah tarikh bayaran emolumen pensyarah pelawat Visiting Scholars mengikut Pekeliling Bendahari 15/2015?",
+    "scope": "Bendahari",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Emolument"},
+    "relevant_docs": {"CIRC-BEN-048": 2, "CIRC-BEN-049": 1}
+  },
+  {
+    "id": "CROSS-09",
+    "direction": "cross_bm_to_en",
+    "query": "Apakah garis panduan latihan industri atau praktikum untuk majikan dan pelajar UUM?",
+    "scope": "HEA",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Practicum"},
+    "relevant_docs": {"CDOC-UNI-013": 2}
+  },
+  {
+    "id": "CROSS-10",
+    "direction": "cross_bm_to_en",
+    "query": "Apakah borang pendaftaran kursus elektif bebas untuk pelajar HEA?",
+    "scope": "HEA",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "category": "Student Forms"},
+    "relevant_docs": {"CFORM-UNI-004": 2}
+  },
+  {
+    "id": "CROSS-11",
+    "direction": "cross_bm_to_en",
+    "query": "Apakah struktur kursus Sarjana Muda Teknologi Maklumat dengan Kepujian di SOC sesi 2026/2027?",
+    "scope": "CAS",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "academic_session": "2026/2027"},
+    "relevant_docs": {"CDOC-CAS-028": 2}
+  },
+  {
+    "id": "CROSS-12",
+    "direction": "cross_bm_to_en",
+    "query": "Bilakah tarikh pendaftaran pelajar baharu dan cuti semester dalam kalendar akademik sesi 2026/2027?",
+    "scope": "HEA",
+    "filter_active": true,
+    "metadata_filters": {"status": "Active", "academic_session": "2026/2027"},
+    "relevant_docs": {"CDOC-UNI-001": 2, "CDOC-UNI-002": 1}
+  }
+]

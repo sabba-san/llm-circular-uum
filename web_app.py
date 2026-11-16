@@ -45,6 +45,8 @@ def get_assistant():
     global _assistant
     if _assistant is None:
         _assistant = UUMAssistant()
+    else:
+        _assistant._ensure_fresh_sqlite()
     return _assistant
 
 
@@ -184,8 +186,70 @@ async def api_serve_file(request):
     return FileResponse(resolved_path, media_type=mime_type, headers=headers)
 
 
+async def health_check(request):
+    """Lightweight healthcheck verifying SQLite connectivity and returning index counts."""
+    if not os.path.exists(SQLITE_DB):
+        return JSONResponse({"status": "error", "database": "missing"}, status_code=503)
+
+    con = None
+    try:
+        con = sqlite3.connect(SQLITE_DB, timeout=5.0)
+        cur = con.cursor()
+        cur.execute("SELECT 1;")
+        cur.fetchone()
+
+        def _count(query):
+            try:
+                return cur.execute(query).fetchone()[0]
+            except sqlite3.OperationalError:
+                return 0
+
+        circulars = _count("SELECT count(*) FROM circulars;")
+        active_circulars = _count("SELECT count(*) FROM circulars WHERE status = 'Active';")
+        admin_forms = _count("SELECT count(*) FROM required_documents_forms;")
+        college_docs = _count("SELECT count(*) FROM college_documents;")
+        college_forms = _count("SELECT count(*) FROM college_forms;")
+        chunks = _count("SELECT count(*) FROM document_chunks;")
+
+        documents = {
+            "circulars": circulars,
+            "active_circulars": active_circulars,
+            "admin_forms": admin_forms,
+            "college_documents": college_docs,
+            "college_forms": college_forms,
+            "total": circulars + admin_forms + college_docs + college_forms,
+        }
+        if chunks == 0:
+            return JSONResponse(
+                {
+                    "status": "error",
+                    "database": "empty",
+                    "detail": "document_chunks table has 0 indexed chunks",
+                    "documents": documents,
+                    "chunks": 0,
+                },
+                status_code=503,
+            )
+
+        return JSONResponse({
+            "status": "ok",
+            "database": "ok",
+            "documents": documents,
+            "chunks": chunks,
+        })
+    except Exception as exc:
+        return JSONResponse(
+            {"status": "error", "database": "error", "detail": str(exc)},
+            status_code=503,
+        )
+    finally:
+        if con is not None:
+            con.close()
+
+
 routes = [
     Route("/", endpoint=homepage, methods=["GET"]),
+    Route("/health", endpoint=health_check, methods=["GET"]),
     Route("/api/catalog", endpoint=api_catalog, methods=["GET"]),
     Route("/api/ask", endpoint=api_ask, methods=["POST"]),
     Route("/api/doc/{doc_id}", endpoint=api_doc_preview, methods=["GET"]),

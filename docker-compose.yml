@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: llm_uum_app
-    restart: unless-stopped
+    restart: "no"
     ports:
       - "8000:8000"
     environment:
@@ -17,7 +17,7 @@ services:
       - ./data:/app/data
       - ./circular_forms:/app/circular_forms
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/ || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

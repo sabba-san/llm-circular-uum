@@ -1,19 +1,20 @@
 # UUM Circular & Project Document Intelligence System (LLM)
 
-**A retrieval-augmented intelligence assistant for Universiti Utara Malaysia (UUM) circulars, guidelines, and project forms.**  
+**A centralized AI-powered hub for finding Universiti Utara Malaysia (UUM) information, circulars, guidelines, college documents, and official forms.**  
 *Prepared by: Ahmad Abbas & Lia*  
 *Universiti Utara Malaysia (UUM)*
 
 ---
 
 ## 📌 Project Overview
-The **UUM Circular & Project Document Intelligence System** is an LLM-powered Retrieval-Augmented Generation (RAG) assistant designed to centralize and navigate administrative circulars (*Pekeliling*), SOPs, guidelines, and project forms across all Universiti Utara Malaysia (UUM) centers of authority (PTJs):
+The **UUM Circular & Project Document Intelligence System** is a centralized place for UUM students, researchers, and staff to quickly find official university information, administrative circulars (*Pekeliling*), SOPs, guidelines, college documents, and downloadable forms across UUM's centers of authority (PTJs) and colleges:
 - **RMC** (Research Management Centre)
 - **Jabatan Bendahari** (Bursar's Office)
 - **ICC** (Innovation & Commercialization Center)
 - **JUU** (Jabatan Undang-Undang / Legal Office)
+- **Colleges & Academic Units** (Student/academic guidelines and college forms)
 
-Users can query the system in natural language (Bahasa Melayu & English) to retrieve exact clause-level citations, applicable circular reference numbers, effective dates, and mandatory forms/checklists for university research grants, consultancy, commercialization, and financial claims.
+Instead of searching through scattered portals and PDF folders, users can ask questions in natural language (Bahasa Melayu & English) to get direct answers, exact page/clause citations, and the right forms to fill out and download.
 
 ---
 
@@ -21,15 +22,23 @@ Users can query the system in natural language (Bahasa Melayu & English) to retr
 
 ```
 llm_uum/
-├── app.py                         # 🌐 Streamlit Interactive Web Application (Phase 4)
+├── web_app.py                     # 🌐 Primary 3-Pane AI Copilot & PDF Inspector (FastAPI/Starlette, Port 8000)
+├── app.py                         # 📊 Legacy / Admin Streamlit Dashboard (Catalog Export & Demo Scenarios, Port 8501)
 ├── pipeline.py                    # 🚀 Unified Automation Pipeline (Sort + Ingest in 1-Click)
 ├── ask.py                         # 🔍 Ask Assistant CLI (One-shot & Interactive Mode)
 ├── ingest.py                      # ⚡ Chunking & Database Ingestion CLI
 ├── sort.py                        # 📊 Circular & Form Auto-Sorter & OCR CLI
-├── circular_Forms_tracker.xlsx    # Master Excel Tracker (circulars & forms catalog)
+├── circular_Forms_tracker.xlsx    # Master Excel Tracker (PTJ circulars & forms catalog)
+├── college_documents_tracker.xlsx # Master Excel Tracker (College documents & forms catalog)
+├── Dockerfile                     # 🐳 Container image definition (Python 3.12 + Poppler + Tesseract)
+├── docker-compose.yml             # 🐳 1-Click Docker Compose setup
+├── docker-entrypoint.sh           # 🔄 Container startup & DB verification script
 ├── .env.example                   # Environment configuration template
 ├── requirements.txt               # Lightweight Python dependencies
 ├── README.md                      # Project documentation & usage guide
+│
+├── templates/                     # 🎨 Web UI HTML templates (index.html)
+├── static/                        # 🎨 Web UI frontend assets (app.js, styles.css)
 │
 ├── src/                           # 🧠 Modular Core System Package
 │   ├── __init__.py                # Package initializer
@@ -37,7 +46,11 @@ llm_uum/
 │   ├── db.py                      # Dual-mode Database Setup (PostgreSQL + pgvector / SQLite)
 │   ├── ingestion.py               # Document Chunking, Semantic Embedding & Ingestion
 │   ├── search.py                  # Hybrid Search (BM25 + Semantic Vector Retrieval)
-│   └── tracker_sorter.py          # Auto-Sorter, OCR fallback, & Tracker Generator
+│   ├── tracker_sorter.py          # Auto-Sorter, OCR fallback, & Tracker Generator
+│   ├── college_extractor.py       # College document metadata & text extractor
+│   ├── college_ingestion.py       # College document chunking & DB ingestion
+│   ├── college_organizer.py       # College document folder organizer
+│   └── college_tracker.py         # College document Excel tracker generator
 │
 ├── docs/                          # 📄 System Documentation
 │   ├── LLM_UUM_Proposal.md        # 📋 Industrial Training Proposal (Humanized Markdown)
@@ -111,8 +124,8 @@ Open **`http://localhost:8000`** in your browser.
 
 > 🔄 **Teammate or Friend Sync**: If a team member's screen is showing the old single-page "UUM Consensus" search portal (249 docs), see the [Teammate & Friend Sync Guide](docs/TEAM_SYNC_GUIDE.md) to upgrade to the full 689-doc 3-pane platform in 1 click!
 
-### 2. Streamlit Dashboard & Catalog Explorer (`app.py` — Port 8501)
-Browser-based dashboard for interactive catalog management, Excel exporting, and 1-click supervisor presentation demos:
+### 2. Legacy / Admin Streamlit Dashboard (`app.py` — Port 8501)
+Optional browser-based admin dashboard for interactive catalog management, Excel exporting, and 1-click supervisor presentation demos (for day-to-day use, prefer `web_app.py` above):
 
 ```bash
 streamlit run app.py
@@ -225,10 +238,12 @@ Synthesized Answer with Exact Citations & Mandatory Forms Checklist
 ---
 
 ## 📊 Document Corpus Statistics
-- **Total Cataloged Circulars**: 175 (Jabatan Bendahari: 141, RMC: 28, ICC & JUU: Active Collection)
-- **Total Cataloged Forms**: 74 (KEW.PA series, RMC 001–023, BEN series, etc.)
-- **Semantic Text Chunks**: 3,527 chunks indexed with section headings and page citations.
-- **Corpus Footprint**: 95 MB (227 PDF and document files).
+- **Total Indexed Documents**: 689 documents across PTJ and College collections
+  - **PTJ Circulars**: 175 (Jabatan Bendahari, RMC, ICC, JUU)
+  - **PTJ Forms**: 74 (KEW.PA series, RMC 001–023, BEN series, etc.)
+  - **College Documents**: 209
+  - **College Forms**: 231
+- **Semantic Text Chunks**: 12,570 chunks indexed with section headings and page citations.
 
 ---
 

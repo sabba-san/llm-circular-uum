@@ -338,12 +338,17 @@ def run_ingestion(force_reembed=False):
                 circular_ref_no,
                 department,
                 section_heading,
-                chunk_text
+                chunk_text,
+                college,
+                school
             );
         """)
         sqlite_con.execute("""
-            INSERT INTO chunks_fts (chunk_id, circular_ref_no, department, section_heading, chunk_text)
-            SELECT chunk_id, circular_ref_no, department, section_heading, chunk_text FROM document_chunks;
+            INSERT INTO chunks_fts (chunk_id, circular_ref_no, department, section_heading, chunk_text, college, school)
+            SELECT chunk_id, circular_ref_no, department, section_heading,
+                   chunk_text || ' ' || COALESCE(required_forms, ''),
+                   COALESCE(college, ''), COALESCE(school, '')
+            FROM document_chunks;
         """)
         sqlite_con.commit()
         sqlite_con.close()
