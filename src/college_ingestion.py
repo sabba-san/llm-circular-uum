@@ -359,10 +359,18 @@ def run_college_ingestion(force_reembed=False):
         """)
         sqlite_con.execute("""
             INSERT INTO chunks_fts (chunk_id, circular_ref_no, department, section_heading, chunk_text, college, school)
-            SELECT chunk_id, circular_ref_no, department, section_heading,
-                   chunk_text || ' ' || COALESCE(required_forms, ''),
-                   COALESCE(college, ''), COALESCE(school, '')
-            FROM document_chunks;
+            SELECT d.chunk_id,
+                   COALESCE(d.circular_ref_no, '') || ' ' || COALESCE(c.title, cd.title, rf.form_title, cf.form_title, ''),
+                   d.department,
+                   d.section_heading,
+                   d.chunk_text || ' ' || COALESCE(d.required_forms, '') || ' ' || COALESCE(d.academic_session, ''),
+                   COALESCE(d.college, ''),
+                   COALESCE(d.school, '')
+            FROM document_chunks d
+            LEFT JOIN circulars c ON d.circular_id = c.id
+            LEFT JOIN college_documents cd ON d.circular_id = cd.id
+            LEFT JOIN required_documents_forms rf ON d.circular_id = rf.id
+            LEFT JOIN college_forms cf ON d.circular_id = cf.id;
         """)
         sqlite_con.commit()
         sqlite_con.close()

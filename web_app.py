@@ -113,9 +113,10 @@ async def api_ask(request):
         scope = "All"
 
     filter_active = bool(body.get("filter_active", True))
+    previous_query = str(body.get("previous_query", "")).strip()[:500]
 
     ast = get_assistant()
-    res = ast.ask(query=query, filter_active=filter_active, scope=scope, top_k=6)
+    res = ast.ask(query=query, filter_active=filter_active, scope=scope, top_k=6, previous_query=previous_query)
     return JSONResponse(res)
 
 

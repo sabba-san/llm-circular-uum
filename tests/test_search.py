@@ -59,3 +59,25 @@ def test_tier4_offline_extractive_mode(monkeypatch):
     assert len(res["sources"]) > 0
     assert "Extractive Index Mode" in res["answer"]
     assert res["query"] == "Apakah syarat lantikan GRA?"
+    assert 1 <= len(res["follow_up_questions"]) <= 3
+    assert all(isinstance(q, str) and len(q) > 10 for q in res["follow_up_questions"])
+
+
+def test_juu_scope_and_followup_previous_query(monkeypatch):
+    """JUU legal statutes are searchable under scope='JUU' and previous_query disambiguates short follow-ups."""
+    assistant = _make_offline_assistant(monkeypatch)
+    juu_results = assistant.hybrid_search("Statut Senat", top_k=5, filter_active=True, scope="JUU")
+    assert len(juu_results) > 0
+    assert all("juu" in (r.get("department") or "").lower() or "undang" in (r.get("department") or "").lower() for r in juu_results)
+
+    res = assistant.ask("What are the deadlines for this?", filter_active=True, scope="Bendahari", previous_query="Bursar Circular 15/2015 Visiting Scholars")
+    assert len(res["sources"]) > 0
+
+
+def test_out_of_scope_query_returns_no_sources(monkeypatch):
+    """Off-topic queries like 'what is 2+2' must not match stopword chunks or hallucinate answers."""
+    assistant = _make_offline_assistant(monkeypatch)
+    res = assistant.ask("what is 2+2", filter_active=True, scope="RMC", top_k=6)
+    assert res["sources"] == []
+    assert res["provider"] == "None"
+    assert res["follow_up_questions"] == []

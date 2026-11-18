@@ -10,56 +10,56 @@
       "count": 36,
       "p3": 0.4167,
       "r3": 0.8472,
-      "mrr3": 0.9028,
-      "ndcg3": 0.8531,
-      "p5": 0.2611,
-      "r5": 0.875,
-      "mrr5": 0.9028,
-      "ndcg5": 0.8597
+      "mrr3": 0.912,
+      "ndcg3": 0.865,
+      "p5": 0.25,
+      "r5": 0.8472,
+      "mrr5": 0.912,
+      "ndcg5": 0.865
     },
     "en": {
       "count": 12,
       "p3": 0.4444,
       "r3": 0.7917,
       "mrr3": 0.9167,
-      "ndcg3": 0.8044,
+      "ndcg3": 0.8213,
       "p5": 0.2667,
       "r5": 0.7917,
       "mrr5": 0.9167,
-      "ndcg5": 0.8044
+      "ndcg5": 0.8213
     },
     "bm": {
       "count": 12,
       "p3": 0.4444,
       "r3": 0.9583,
       "mrr3": 1.0,
-      "ndcg3": 0.9855,
-      "p5": 0.2833,
-      "r5": 1.0,
+      "ndcg3": 0.9825,
+      "p5": 0.2667,
+      "r5": 0.9583,
       "mrr5": 1.0,
-      "ndcg5": 0.9954
+      "ndcg5": 0.9825
     },
     "cross_en_to_bm": {
       "count": 6,
       "p3": 0.3333,
       "r3": 0.75,
-      "mrr3": 0.8333,
-      "ndcg3": 0.8008,
-      "p5": 0.2333,
-      "r5": 0.8333,
-      "mrr5": 0.8333,
-      "ndcg5": 0.8205
+      "mrr3": 0.8056,
+      "ndcg3": 0.7827,
+      "p5": 0.2,
+      "r5": 0.75,
+      "mrr5": 0.8056,
+      "ndcg5": 0.7827
     },
     "cross_bm_to_en": {
       "count": 6,
       "p3": 0.3889,
       "r3": 0.8333,
-      "mrr3": 0.75,
-      "ndcg3": 0.7379,
+      "mrr3": 0.8333,
+      "ndcg3": 0.7994,
       "p5": 0.2333,
       "r5": 0.8333,
-      "mrr5": 0.75,
-      "ndcg5": 0.7379
+      "mrr5": 0.8333,
+      "ndcg5": 0.7994
     }
   },
   "ablation_sweep": [
@@ -68,14 +68,14 @@
       "keyword_weight": 1.0,
       "ALL": {
         "count": 36,
-        "p3": 0.4074,
-        "r3": 0.8194,
-        "mrr3": 0.8426,
-        "ndcg3": 0.7981,
+        "p3": 0.3889,
+        "r3": 0.7778,
+        "mrr3": 0.8472,
+        "ndcg3": 0.7951,
         "p5": 0.25,
         "r5": 0.8333,
-        "mrr5": 0.8426,
-        "ndcg5": 0.801
+        "mrr5": 0.8597,
+        "ndcg5": 0.8189
       }
     },
     {
@@ -85,12 +85,12 @@
         "count": 36,
         "p3": 0.4167,
         "r3": 0.8472,
-        "mrr3": 0.9028,
-        "ndcg3": 0.8531,
-        "p5": 0.2611,
-        "r5": 0.875,
-        "mrr5": 0.9028,
-        "ndcg5": 0.8597
+        "mrr3": 0.912,
+        "ndcg3": 0.865,
+        "p5": 0.25,
+        "r5": 0.8472,
+        "mrr5": 0.912,
+        "ndcg5": 0.865
       }
     },
     {
@@ -98,14 +98,14 @@
       "keyword_weight": 0.5,
       "ALL": {
         "count": 36,
-        "p3": 0.4259,
-        "r3": 0.8611,
-        "mrr3": 0.8981,
-        "ndcg3": 0.8539,
-        "p5": 0.2556,
-        "r5": 0.8611,
-        "mrr5": 0.8981,
-        "ndcg5": 0.8539
+        "p3": 0.3889,
+        "r3": 0.7778,
+        "mrr3": 0.8611,
+        "ndcg3": 0.8092,
+        "p5": 0.25,
+        "r5": 0.8333,
+        "mrr5": 0.875,
+        "ndcg5": 0.834
       }
     },
     {
@@ -113,14 +113,14 @@
       "keyword_weight": 0.4,
       "ALL": {
         "count": 36,
-        "p3": 0.3889,
-        "r3": 0.8056,
-        "mrr3": 0.8796,
-        "ndcg3": 0.8168,
-        "p5": 0.2444,
+        "p3": 0.3796,
+        "r3": 0.7639,
+        "mrr3": 0.8611,
+        "ndcg3": 0.8014,
+        "p5": 0.25,
         "r5": 0.8333,
-        "mrr5": 0.8796,
-        "ndcg5": 0.8274
+        "mrr5": 0.875,
+        "ndcg5": 0.8295
       }
     },
     {
@@ -129,13 +129,13 @@
       "ALL": {
         "count": 36,
         "p3": 0.3704,
-        "r3": 0.7639,
-        "mrr3": 0.8426,
-        "ndcg3": 0.7799,
+        "r3": 0.75,
+        "mrr3": 0.8611,
+        "ndcg3": 0.7919,
         "p5": 0.2444,
         "r5": 0.8194,
-        "mrr5": 0.8551,
-        "ndcg5": 0.8031
+        "mrr5": 0.875,
+        "ndcg5": 0.82
       }
     },
     {
@@ -143,14 +143,14 @@
       "keyword_weight": 0.0,
       "ALL": {
         "count": 36,
-        "p3": 0.3148,
-        "r3": 0.6667,
+        "p3": 0.2778,
+        "r3": 0.5833,
         "mrr3": 0.6667,
-        "ndcg3": 0.5941,
-        "p5": 0.2167,
-        "r5": 0.7361,
-        "mrr5": 0.6861,
-        "ndcg5": 0.6271
+        "ndcg3": 0.6004,
+        "p5": 0.2056,
+        "r5": 0.7222,
+        "mrr5": 0.6847,
+        "ndcg5": 0.6698
       }
     }
   ],
@@ -209,30 +209,30 @@
       }
     },
     {
-      "id": "CROSS-06",
+      "id": "CROSS-03",
       "direction": "cross_en_to_bm",
-      "scope": "CAS",
-      "query": "What are the graduation requirements for Bachelor with Honours programmes at UUM CAS?",
+      "scope": "RMC",
+      "query": "How do I apply for a university internal research grant under Geran Universiti RMC?",
       "relevant_docs": {
-        "CDOC-CAS-010": 2,
-        "CDOC-CAS-001": 1
+        "CIRC-RMC-165": 2,
+        "CIRC-RMC-164": 1
       },
       "retrieved_top5": [
-        "CDOC-CAS-022",
-        "CDOC-CAS-010",
-        "CDOC-CAS-020",
-        "CDOC-CAS-017",
-        "CDOC-CAS-009"
+        "FORM-RMC-073",
+        "FORM-RMC-068",
+        "CIRC-RMC-165",
+        "FORM-RMC-069",
+        "CIRC-RMC-167"
       ],
       "metrics": {
         "p3": 0.3333,
         "r3": 0.5,
-        "mrr3": 0.5,
-        "ndcg3": 0.5213,
+        "mrr3": 0.3333,
+        "ndcg3": 0.4131,
         "p5": 0.2,
         "r5": 0.5,
-        "mrr5": 0.5,
-        "ndcg5": 0.5213
+        "mrr5": 0.3333,
+        "ndcg5": 0.4131
       }
     }
   ],
@@ -249,8 +249,8 @@
       "retrieved_top5": [
         "CIRC-RMC-157",
         "CIRC-RMC-160",
-        "CIRC-RMC-170",
         "CIRC-RMC-167",
+        "CIRC-RMC-170",
         "CIRC-RMC-162"
       ],
       "metrics": {
@@ -274,18 +274,18 @@
         "CIRC-RMC-150": 1
       },
       "retrieved_top5": [
-        "CIRC-RMC-150",
-        "CIRC-RMC-168"
+        "CIRC-RMC-168",
+        "CIRC-RMC-150"
       ],
       "metrics": {
         "p3": 0.6667,
         "r3": 1.0,
         "mrr3": 1.0,
-        "ndcg3": 0.7967,
+        "ndcg3": 1.0,
         "p5": 0.4,
         "r5": 1.0,
         "mrr5": 1.0,
-        "ndcg5": 0.7967
+        "ndcg5": 1.0
       }
     },
     {
@@ -403,8 +403,8 @@
         "CIRC-BEN-048",
         "CIRC-BEN-049",
         "CIRC-BEN-010",
-        "CIRC-BEN-017",
-        "CIRC-BEN-014"
+        "CIRC-BEN-014",
+        "CIRC-BEN-009"
       ],
       "metrics": {
         "p3": 0.6667,
@@ -480,8 +480,7 @@
         "CDOC-CLG-022": 1
       },
       "retrieved_top5": [
-        "CDOC-CLG-026",
-        "CDOC-CLG-024"
+        "CDOC-CLG-026"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -506,7 +505,6 @@
         "CDOC-COB-003",
         "CDOC-COB-015",
         "CDOC-COB-001",
-        "CDOC-COB-002",
         "CDOC-COB-009"
       ],
       "metrics": {
@@ -533,8 +531,7 @@
         "CDOC-CLG-024",
         "CDOC-CLG-025",
         "CDOC-CLG-026",
-        "CFORM-CLG-028",
-        "CDOC-CLG-023"
+        "CFORM-CLG-028"
       ],
       "metrics": {
         "p3": 0.6667,
@@ -560,8 +557,8 @@
         "CIRC-BEN-010",
         "CIRC-BEN-011",
         "CIRC-BEN-022",
-        "CIRC-BEN-017",
-        "CIRC-BEN-020"
+        "CIRC-BEN-020",
+        "CIRC-BEN-017"
       ],
       "metrics": {
         "p3": 0.6667,
@@ -586,8 +583,8 @@
         "CIRC-BEN-015",
         "CIRC-BEN-018",
         "CIRC-BEN-016",
-        "CIRC-BEN-011",
-        "CIRC-BEN-085"
+        "CIRC-BEN-085",
+        "CIRC-BEN-131"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -659,21 +656,17 @@
         "CIRC-BEN-010": 1
       },
       "retrieved_top5": [
-        "CIRC-BEN-011",
-        "CIRC-BEN-010",
-        "CIRC-BEN-009",
-        "CIRC-BEN-020",
-        "CIRC-BEN-017"
+        "CIRC-BEN-011"
       ],
       "metrics": {
-        "p3": 0.6667,
-        "r3": 1.0,
+        "p3": 0.3333,
+        "r3": 0.5,
         "mrr3": 1.0,
-        "ndcg3": 1.0,
-        "p5": 0.4,
-        "r5": 1.0,
+        "ndcg3": 0.8262,
+        "p5": 0.2,
+        "r5": 0.5,
         "mrr5": 1.0,
-        "ndcg5": 1.0
+        "ndcg5": 0.8262
       }
     },
     {
@@ -688,19 +681,19 @@
       "retrieved_top5": [
         "CIRC-RMC-167",
         "CIRC-RMC-164",
-        "CIRC-RMC-153",
         "CIRC-RMC-165",
-        "CIRC-RMC-149"
+        "CIRC-RMC-153",
+        "CIRC-RMC-169"
       ],
       "metrics": {
-        "p3": 0.3333,
-        "r3": 0.5,
+        "p3": 0.6667,
+        "r3": 1.0,
         "mrr3": 1.0,
-        "ndcg3": 0.8262,
+        "ndcg3": 0.9639,
         "p5": 0.4,
         "r5": 1.0,
         "mrr5": 1.0,
-        "ndcg5": 0.9448
+        "ndcg5": 0.9639
       }
     },
     {
@@ -712,11 +705,7 @@
         "CIRC-RMC-152": 2
       },
       "retrieved_top5": [
-        "CIRC-RMC-152",
-        "CIRC-RMC-149",
-        "CIRC-RMC-164",
-        "CIRC-RMC-165",
-        "CIRC-RMC-162"
+        "CIRC-RMC-152"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -741,8 +730,8 @@
       "retrieved_top5": [
         "CFORM-UNI-006",
         "CFORM-UNI-005",
-        "CFORM-UNI-003",
-        "CFORM-UNI-004"
+        "CFORM-UNI-004",
+        "CFORM-UNI-003"
       ],
       "metrics": {
         "p3": 0.6667,
@@ -791,11 +780,7 @@
         "CIRC-BEN-008": 2
       },
       "retrieved_top5": [
-        "CIRC-BEN-008",
-        "CIRC-BEN-014",
-        "CIRC-BEN-018",
-        "CIRC-BEN-015",
-        "CIRC-BEN-017"
+        "CIRC-BEN-008"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -818,10 +803,10 @@
       },
       "retrieved_top5": [
         "CIRC-CIRC-004",
+        "CIRC-CIRC-005",
         "CIRC-CIRC-002",
         "CIRC-CIRC-001",
-        "CIRC-CIRC-007",
-        "CIRC-CIRC-003"
+        "FORM-FORM-013"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -870,9 +855,9 @@
       "retrieved_top5": [
         "CIRC-BEN-016",
         "CIRC-BEN-049",
-        "CIRC-BEN-015",
-        "CIRC-BEN-014",
-        "CIRC-BEN-017"
+        "CIRC-BEN-018",
+        "CIRC-BEN-010",
+        "CIRC-BEN-014"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -895,10 +880,10 @@
       },
       "retrieved_top5": [
         "CIRC-BEN-015",
+        "FORM-BEN-051",
         "CIRC-BEN-085",
         "CIRC-BEN-131",
-        "CIRC-BEN-018",
-        "CIRC-BEN-086"
+        "CIRC-BEN-018"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -921,21 +906,21 @@
         "CIRC-RMC-164": 1
       },
       "retrieved_top5": [
+        "FORM-RMC-073",
+        "FORM-RMC-068",
         "CIRC-RMC-165",
-        "CIRC-RMC-167",
-        "CIRC-RMC-156",
-        "CIRC-RMC-164",
-        "CIRC-RMC-155"
+        "FORM-RMC-069",
+        "CIRC-RMC-167"
       ],
       "metrics": {
         "p3": 0.3333,
         "r3": 0.5,
-        "mrr3": 1.0,
-        "ndcg3": 0.8262,
-        "p5": 0.4,
-        "r5": 1.0,
-        "mrr5": 1.0,
-        "ndcg5": 0.9448
+        "mrr3": 0.3333,
+        "ndcg3": 0.4131,
+        "p5": 0.2,
+        "r5": 0.5,
+        "mrr5": 0.3333,
+        "ndcg5": 0.4131
       }
     },
     {
@@ -950,8 +935,8 @@
         "CIRC-BEN-010",
         "CIRC-BEN-012",
         "CIRC-BEN-009",
-        "CIRC-BEN-014",
-        "CIRC-BEN-015"
+        "FORM-BEN-022",
+        "CIRC-BEN-032"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -977,7 +962,7 @@
         "CIRC-CIRC-001",
         "CIRC-CIRC-007",
         "CIRC-CIRC-002",
-        "CIRC-CIRC-004"
+        "FORM-FORM-015"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -1000,21 +985,21 @@
         "CDOC-CAS-001": 1
       },
       "retrieved_top5": [
-        "CDOC-CAS-022",
         "CDOC-CAS-010",
+        "CDOC-CAS-022",
         "CDOC-CAS-020",
         "CDOC-CAS-017",
-        "CDOC-CAS-009"
+        "CDOC-CAS-057"
       ],
       "metrics": {
         "p3": 0.3333,
         "r3": 0.5,
-        "mrr3": 0.5,
-        "ndcg3": 0.5213,
+        "mrr3": 1.0,
+        "ndcg3": 0.8262,
         "p5": 0.2,
         "r5": 0.5,
-        "mrr5": 0.5,
-        "ndcg5": 0.5213
+        "mrr5": 1.0,
+        "ndcg5": 0.8262
       }
     },
     {
@@ -1026,18 +1011,18 @@
         "CIRC-RMC-168": 2
       },
       "retrieved_top5": [
-        "CIRC-RMC-150",
-        "CIRC-RMC-168"
+        "CIRC-RMC-168",
+        "CIRC-RMC-150"
       ],
       "metrics": {
         "p3": 0.3333,
         "r3": 1.0,
-        "mrr3": 0.5,
-        "ndcg3": 0.6309,
+        "mrr3": 1.0,
+        "ndcg3": 1.0,
         "p5": 0.2,
         "r5": 1.0,
-        "mrr5": 0.5,
-        "ndcg5": 0.6309
+        "mrr5": 1.0,
+        "ndcg5": 1.0
       }
     },
     {
@@ -1054,7 +1039,7 @@
         "CIRC-BEN-049",
         "CIRC-BEN-009",
         "CIRC-BEN-012",
-        "CIRC-BEN-018"
+        "CIRC-BEN-022"
       ],
       "metrics": {
         "p3": 0.6667,

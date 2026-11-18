@@ -63,6 +63,7 @@ def test_ask_endpoint_offline(monkeypatch):
     assert data["provider"] == "Offline Extractive Engine"
     assert len(data["sources"]) > 0
     assert len(data["answer"]) > 0
+    assert 1 <= len(data.get("follow_up_questions", [])) <= 3
 
 
 def test_document_preview_and_file_spaces_and_unicode():

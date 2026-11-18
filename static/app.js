@@ -16,6 +16,8 @@
     { id: "HEA", label: "HEA Shared (Calendars & Forms)" },
     { id: "RMC", label: "RMC (Research Grants & GRA)" },
     { id: "Bendahari", label: "Bendahari (Finance & Claims)" },
+    { id: "ICC", label: "ICC (Innovation & IP)" },
+    { id: "JUU", label: "JUU (Legal & Statutes)" },
   ];
 
   const BENCHMARKS = [
@@ -85,6 +87,9 @@
     currentDocInViewer: null,
     activeCardIndex: null,
     isSubmitting: false,
+    lastQuery: "",
+    autoPredictItems: [],
+    autoPredictIdx: -1,
   };
 
   // ==================== DOM Selectors ====================
@@ -120,6 +125,7 @@
     turnsContainer: document.getElementById("turnsContainer"),
     threadScrollArea: document.getElementById("threadScrollArea"),
     searchForm: document.getElementById("searchForm"),
+    autoPredictMenu: document.getElementById("autoPredictMenu"),
     queryInput: document.getElementById("queryInput"),
     btnSubmitQuery: document.getElementById("btnSubmitQuery"),
     btnQuickPrompts: document.getElementById("btnQuickPrompts"),
@@ -709,6 +715,7 @@
   // ==================== Search & RAG Flow ====================
   function triggerSearch(queryText, scopeOverride = null) {
     if (!queryText || state.isSubmitting) return;
+    hideAutoPredict();
 
     const targetScope = scopeOverride || state.activeScope;
     state.activeScope = targetScope;
@@ -754,6 +761,7 @@
         query: queryText,
         scope: targetScope,
         filter_active: state.filterActive,
+        previous_query: state.lastQuery || "",
       }),
     })
       .then((res) => {
@@ -763,84 +771,9 @@
       .then((data) => {
         state.isSubmitting = false;
         dom.btnSubmitQuery.disabled = false;
+        state.lastQuery = queryText;
 
-        const answerHtml = renderLLMUUMMarkdown(data.answer, data.sources);
-        const formsHtml = renderLinkedFormsChips(data.linked_forms);
-
-        // Collapsible RAG retrieval trace (mirrors reference screenshot steps)
-        const ragStepsHtml = `
-          <details class="rag-steps-details" open>
-            <summary class="rag-steps-summary">
-              <div class="rag-summary-left">
-                <span class="rag-step-badge">
-                  ${ICONS.academic}
-                  <span>Hybrid RAG</span>
-                </span>
-                <span>Retrieval &middot; <strong>${data.sources.length} sources</strong> retrieved</span>
-              </div>
-              <svg class="rag-steps-chevron" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
-            </summary>
-            <div class="rag-steps-list">
-              <div class="rag-step-item">
-                <div class="rag-step-query">
-                  <svg class="icon-svg-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                  <span>${escapeHtml(queryText)}</span>
-                </div>
-                <span class="rag-step-count">${data.sources.length} verified chunks</span>
-              </div>
-              <div class="rag-step-item">
-                <div class="rag-step-query">
-                  <svg class="icon-svg-sm" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                  <span>Scope: ${escapeHtml(targetScope)} &bull; ${state.filterActive ? "2024–2027 Handbooks" : "All Sessions"}</span>
-                </div>
-                <span class="rag-step-count">${escapeHtml(data.provider || "Gemini Flash")}</span>
-              </div>
-            </div>
-          </details>
-        `;
-
-        assistantTurn.innerHTML = `
-          <div class="turn-assistant-meta">
-            <span class="assistant-identity">${ICONS.academic}<span>LLM UUM</span></span>
-            <span class="assistant-engine-badge">Grounded in ${data.sources.length} sources &bull; ${escapeHtml(data.provider || "Gemini Flash")}</span>
-          </div>
-          ${ragStepsHtml}
-          ${answerHtml}
-          ${formsHtml}
-        `;
-
-        // Wire citation pills inside the assistant response
-        assistantTurn.querySelectorAll(".cite-pill").forEach((pill) => {
-          pill.addEventListener("click", () => {
-            const idx = parseInt(pill.dataset.srcIdx, 10);
-            const page = parseInt(pill.dataset.page, 10) || 1;
-            if (data.sources && data.sources[idx]) {
-              const srcWithPage = { ...data.sources[idx], page_number: page };
-              openDocumentInInspector(srcWithPage, idx, true);
-            }
-          });
-        });
-
-        // Wire form chips
-        assistantTurn.querySelectorAll(".form-chip-btn").forEach((chip) => {
-          chip.addEventListener("click", () => {
-            const fid = chip.dataset.formId;
-            const targetForm = data.linked_forms.find((f) => f.doc_id === fid);
-            if (targetForm) {
-              openDocumentInInspector(targetForm, null, true);
-            }
-          });
-        });
-
-        // Update Right References Pane
-        renderReferenceCards(data.sources);
-
-        // Pre-populate first cited source in Document Inspector without forcing tab switch
-        if (data.sources && data.sources.length > 0) {
-          openDocumentInInspector(data.sources[0], 0, false);
-          switchRightTab("refs"); // Keep on references tab initially so user sees the cards
-        }
-
+        renderAssistantTurn(assistantTurn, queryText, targetScope, data);
         saveThreadHistory(queryText, data);
         dom.threadScrollArea.scrollTop = dom.threadScrollArea.scrollHeight;
       })
@@ -880,17 +813,303 @@
     `;
   }
 
+  function renderFollowUpQuestions(followUps, originalQuery) {
+    if (!followUps || followUps.length === 0) return "";
+    const isMalay = /\b(apakah|bagaimana|berapakah|bilakah|syarat|borang|pekeliling|kursus|di)\b/i.test(originalQuery || "");
+    const header = isMalay ? "Cadangan Soalan Susulan:" : "Suggested Follow-Up Questions:";
+    const items = followUps
+      .map(
+        (q) => `
+        <button type="button" class="followup-btn" data-query="${escapeHtml(q)}">
+          <span class="followup-arrow">&crarr;</span>
+          <span>${escapeHtml(q)}</span>
+        </button>
+      `
+      )
+      .join("");
+
+    return `
+      <div class="followup-section">
+        <div class="followup-label">${header}</div>
+        <div class="followup-list">${items}</div>
+      </div>
+    `;
+  }
+
+  // ==================== Local Catalog Auto-Predict ====================
+  function hideAutoPredict() {
+    state.autoPredictItems = [];
+    state.autoPredictIdx = -1;
+    if (dom.autoPredictMenu) {
+      dom.autoPredictMenu.classList.add("hidden");
+      dom.autoPredictMenu.replaceChildren();
+    }
+  }
+
+  function inferScopeBadge(item) {
+    const col = (item.college || item.department || "").toUpperCase();
+    if (col.includes("CAS")) return "CAS";
+    if (col.includes("COB")) return "COB";
+    if (col.includes("COLGIS")) return "COLGIS";
+    if (col.includes("SHARED") || col.includes("HEA")) return "HEA";
+    if (col.includes("RMC") || col.includes("RESEARCH")) return "RMC";
+    if (col.includes("BENDAHARI")) return "Bendahari";
+    if (col.includes("ICC") || col.includes("INNOVATION")) return "ICC";
+    return "All";
+  }
+
+  function buildAutoPredictSuggestions(rawInput) {
+    const q = (rawInput || "").trim();
+    if (q.length < 2 || q.length > 90) return [];
+    const qLower = q.toLowerCase();
+    const tokens = qLower.split(/\s+/).filter((t) => t.length >= 2);
+    if (tokens.length === 0) return [];
+
+    const isMalay = /\b(apa|apakah|bagaimana|berapakah|bilakah|borang|pekeliling|syarat|elaun|jamuan|kursus|cuti|yuran)\b/i.test(qLower);
+    const results = [];
+    const seenQueries = new Set();
+
+    const addSuggestion = (queryText, scope, tag) => {
+      const key = queryText.toLowerCase();
+      if (key === qLower || seenQueries.has(key)) return;
+      seenQueries.add(key);
+      results.push({ query: queryText, scope: scope || state.activeScope, tag });
+    };
+
+    // 1. Curated UUM scenarios
+    BENCHMARKS.forEach((bm) => {
+      const hay = `${bm.title} ${bm.query} ${bm.scope}`.toLowerCase();
+      if (tokens.every((t) => hay.includes(t))) {
+        addSuggestion(bm.query, bm.scope, bm.scope);
+      }
+    });
+
+    // 2. Match against 703 in-memory catalog items (titles, codes, schools, departments)
+    if (state.catalogItems && state.catalogItems.length > 0) {
+      const scored = [];
+      for (let i = 0; i < state.catalogItems.length; i++) {
+        const item = state.catalogItems[i];
+        const title = (item.title || "").trim();
+        const code = (item.code || "").trim();
+        if (!title && !code) continue;
+        const hay = `${title} ${code} ${item.department || ""} ${item.school || ""}`.toLowerCase();
+        if (!tokens.every((t) => hay.includes(t))) continue;
+
+        let rank = 0;
+        if (code && code.toLowerCase().includes(qLower)) rank += 4;
+        if (title.toLowerCase().startsWith(qLower)) rank += 3;
+        if (item.doc_type === "college_form" || item.doc_type === "admin_form") rank += 1;
+        scored.push({ rank, item });
+      }
+      scored.sort((a, b) => b.rank - a.rank);
+
+      for (let i = 0; i < scored.length && results.length < 5; i++) {
+        const it = scored[i].item;
+        const label = it.title || it.code;
+        const isForm = it.doc_type === "college_form" || it.doc_type === "admin_form";
+        const predictedQuery = isForm
+          ? (isMalay ? `Apakah prosedur dan syarat bagi borang ${label}?` : `What are the requirements and submission steps for ${label}?`)
+          : (isMalay ? `Apakah maklumat dan syarat utama dalam ${label}?` : `What are the key rules and requirements in ${label}?`);
+        addSuggestion(predictedQuery, inferScopeBadge(it), it.code || inferScopeBadge(it));
+      }
+    }
+
+    return results.slice(0, 5);
+  }
+
+  function renderAutoPredict() {
+    if (!dom.autoPredictMenu) return;
+    dom.autoPredictMenu.replaceChildren();
+    if (!state.autoPredictItems || state.autoPredictItems.length === 0) {
+      dom.autoPredictMenu.classList.add("hidden");
+      return;
+    }
+
+    state.autoPredictItems.forEach((item, idx) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "autopredict-item" + (idx === state.autoPredictIdx ? " active" : "");
+      btn.setAttribute("role", "option");
+      btn.innerHTML = `
+        <span class="autopredict-query">${escapeHtml(item.query)}</span>
+        <span class="autopredict-scope">${escapeHtml(item.tag || item.scope)}</span>
+      `;
+      btn.addEventListener("mousedown", (e) => {
+        e.preventDefault(); // Prevent textarea blur before click executes
+        dom.queryInput.value = item.query;
+        hideAutoPredict();
+        triggerSearch(item.query, item.scope !== "All" ? item.scope : state.activeScope);
+      });
+      dom.autoPredictMenu.appendChild(btn);
+    });
+
+    dom.autoPredictMenu.classList.remove("hidden");
+  }
+
+  function updateAutoPredict() {
+    if (!dom.queryInput) return;
+    state.autoPredictItems = buildAutoPredictSuggestions(dom.queryInput.value);
+    state.autoPredictIdx = -1;
+    renderAutoPredict();
+  }
+
+  function renderAssistantTurn(assistantTurn, queryText, targetScope, data) {
+    const sources = data.sources || [];
+    const linkedForms = data.linked_forms || [];
+    const answerHtml = renderLLMUUMMarkdown(data.answer, sources);
+    const formsHtml = renderLinkedFormsChips(linkedForms);
+    const followUpsHtml = renderFollowUpQuestions(data.follow_up_questions, queryText);
+
+    const ragStepsHtml = `
+      <details class="rag-steps-details" open>
+        <summary class="rag-steps-summary">
+          <div class="rag-summary-left">
+            <span class="rag-step-badge">
+              ${ICONS.academic}
+              <span>Hybrid RAG</span>
+            </span>
+            <span>Retrieval &middot; <strong>${sources.length} sources</strong> retrieved</span>
+          </div>
+          <svg class="rag-steps-chevron" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </summary>
+        <div class="rag-steps-list">
+          <div class="rag-step-item">
+            <div class="rag-step-query">
+              <svg class="icon-svg-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <span>${escapeHtml(queryText)}</span>
+            </div>
+            <span class="rag-step-count">${sources.length} verified chunks</span>
+          </div>
+          <div class="rag-step-item">
+            <div class="rag-step-query">
+              <svg class="icon-svg-sm" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              <span>Scope: ${escapeHtml(targetScope)} &bull; ${state.filterActive ? "2024–2027 Handbooks" : "All Sessions"}</span>
+            </div>
+            <span class="rag-step-count">${escapeHtml(data.provider || "Gemini Flash")}</span>
+          </div>
+        </div>
+      </details>
+    `;
+
+    assistantTurn.innerHTML = `
+      <div class="turn-assistant-meta">
+        <span class="assistant-identity">${ICONS.academic}<span>LLM UUM</span></span>
+        <span class="assistant-engine-badge">Grounded in ${sources.length} sources &bull; ${escapeHtml(data.provider || "Gemini Flash")}</span>
+      </div>
+      ${ragStepsHtml}
+      ${answerHtml}
+      ${formsHtml}
+      ${followUpsHtml}
+    `;
+
+    assistantTurn.querySelectorAll(".cite-pill").forEach((pill) => {
+      pill.addEventListener("click", () => {
+        const idx = parseInt(pill.dataset.srcIdx, 10);
+        const page = parseInt(pill.dataset.page, 10) || 1;
+        if (sources[idx]) {
+          openDocumentInInspector({ ...sources[idx], page_number: page }, idx, true);
+        }
+      });
+    });
+
+    assistantTurn.querySelectorAll(".form-chip-btn").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        const fid = chip.dataset.formId;
+        const targetForm = linkedForms.find((f) => f.doc_id === fid);
+        if (targetForm) {
+          openDocumentInInspector(targetForm, null, true);
+        }
+      });
+    });
+
+    assistantTurn.querySelectorAll(".followup-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const nextQuery = btn.dataset.query;
+        if (nextQuery) {
+          triggerSearch(nextQuery, state.activeScope);
+        }
+      });
+    });
+
+    renderReferenceCards(sources);
+    if (sources.length > 0) {
+      openDocumentInInspector(sources[0], 0, false);
+      switchRightTab("refs");
+    }
+  }
+
   function saveThreadHistory(query, resData) {
+    const compactSources = (resData.sources || []).map((s) => ({
+      doc_id: s.doc_id,
+      title: s.title,
+      circular_ref_no: s.circular_ref_no,
+      department: s.department,
+      college: s.college,
+      school: s.school,
+      page_number: s.page_number,
+      section_heading: s.section_heading,
+      chunk_text: (s.chunk_text || "").slice(0, 600),
+      file_path: s.file_path,
+      file_format: s.file_format,
+      doc_type: s.doc_type,
+      combined_score: s.combined_score,
+    }));
     const thread = {
       id: "th_" + Date.now(),
       title: query.slice(0, 45) + (query.length > 45 ? "..." : ""),
       query: query,
+      scope: resData.scope || state.activeScope,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      cachedResponse: {
+        answer: resData.answer,
+        provider: resData.provider,
+        sources: compactSources,
+        linked_forms: resData.linked_forms || [],
+        follow_up_questions: resData.follow_up_questions || [],
+        scope: resData.scope || state.activeScope,
+      },
     };
+    state.threads = state.threads.filter((t) => t.query !== query);
     state.threads.unshift(thread);
-    if (state.threads.length > 25) state.threads.pop();
-    localStorage.setItem("uum_threads", JSON.stringify(state.threads));
+    if (state.threads.length > 15) state.threads.length = 15;
+    try {
+      localStorage.setItem("uum_threads", JSON.stringify(state.threads));
+    } catch (e) {
+      state.threads.length = Math.min(state.threads.length, 5);
+      try { localStorage.setItem("uum_threads", JSON.stringify(state.threads)); } catch (_) {}
+    }
     renderThreadHistory();
+  }
+
+  function restoreSavedThread(th) {
+    if (!th || !th.cachedResponse) {
+      triggerSearch(th.query, th.scope || null);
+      return;
+    }
+    hideAutoPredict();
+    const targetScope = th.scope || "All";
+    state.activeScope = targetScope;
+    state.lastQuery = th.query;
+    if (dom.scopeBtnLabel) dom.scopeBtnLabel.textContent = targetScope === "All" ? "Scope" : targetScope;
+    if (dom.activeScopeBadge) dom.activeScopeBadge.textContent = targetScope === "All" ? "All UUM" : targetScope;
+    renderScopePopovers();
+    switchView("search");
+
+    dom.welcomeHero.classList.add("hidden");
+    dom.turnsContainer.replaceChildren();
+    dom.currentThreadTitle.textContent = th.query.slice(0, 50) + (th.query.length > 50 ? "..." : "");
+    dom.queryInput.value = th.query;
+
+    const userTurn = document.createElement("div");
+    userTurn.className = "turn-user";
+    userTurn.innerHTML = `<div class="turn-user-bubble">${escapeHtml(th.query)}</div>`;
+    dom.turnsContainer.appendChild(userTurn);
+
+    const assistantTurn = document.createElement("div");
+    assistantTurn.className = "turn-assistant";
+    dom.turnsContainer.appendChild(assistantTurn);
+    renderAssistantTurn(assistantTurn, th.query, targetScope, th.cachedResponse);
+    dom.threadScrollArea.scrollTop = 0;
   }
 
   function renderThreadHistory() {
@@ -902,7 +1121,7 @@
       btn.className = "thread-item-btn";
       btn.innerHTML = `${ICONS.message}<span>${escapeHtml(th.title)}</span>`;
       btn.title = th.query;
-      btn.addEventListener("click", () => triggerSearch(th.query));
+      btn.addEventListener("click", () => restoreSavedThread(th));
       dom.threadsList.appendChild(btn);
     });
   }
@@ -990,6 +1209,9 @@
       if (dom.scopePopover && !dom.scopePopover.contains(e.target) && dom.btnScopeMenu && !dom.btnScopeMenu.contains(e.target)) {
         dom.scopePopover.classList.add("hidden");
       }
+      if (dom.autoPredictMenu && !dom.autoPredictMenu.contains(e.target) && dom.queryInput && e.target !== dom.queryInput) {
+        hideAutoPredict();
+      }
     });
 
     // Active Sessions Filter Toggle Pill
@@ -1006,6 +1228,7 @@
     // New Thread button
     if (dom.btnNewThread) {
       dom.btnNewThread.addEventListener("click", () => {
+        state.lastQuery = "";
         dom.turnsContainer.replaceChildren();
         dom.welcomeHero.classList.remove("hidden");
         dom.currentThreadTitle.textContent = "New Thread";
@@ -1080,12 +1303,47 @@
       });
     }
 
-    // Textarea Enter key handling (IME-safe)
+    // Textarea Auto-Predict & Enter key handling (IME-safe)
     if (dom.queryInput) {
+      dom.queryInput.addEventListener("input", updateAutoPredict);
       dom.queryInput.addEventListener("keydown", (e) => {
+        const hasSuggestions = state.autoPredictItems && state.autoPredictItems.length > 0;
+        if (hasSuggestions && e.key === "ArrowDown") {
+          e.preventDefault();
+          state.autoPredictIdx = (state.autoPredictIdx + 1) % state.autoPredictItems.length;
+          renderAutoPredict();
+          return;
+        }
+        if (hasSuggestions && e.key === "ArrowUp") {
+          e.preventDefault();
+          state.autoPredictIdx = (state.autoPredictIdx - 1 + state.autoPredictItems.length) % state.autoPredictItems.length;
+          renderAutoPredict();
+          return;
+        }
+        if (hasSuggestions && e.key === "Tab") {
+          const picked = state.autoPredictItems[state.autoPredictIdx >= 0 ? state.autoPredictIdx : 0];
+          if (picked) {
+            e.preventDefault();
+            dom.queryInput.value = picked.query;
+            hideAutoPredict();
+          }
+          return;
+        }
+        if (hasSuggestions && e.key === "Escape") {
+          hideAutoPredict();
+          return;
+        }
         if (e.key === "Enter" && !e.shiftKey) {
           if (e.isComposing || e.keyCode === 229) return;
           e.preventDefault();
+          if (hasSuggestions && state.autoPredictIdx >= 0) {
+            const picked = state.autoPredictItems[state.autoPredictIdx];
+            dom.queryInput.value = picked.query;
+            hideAutoPredict();
+            triggerSearch(picked.query, picked.scope !== "All" ? picked.scope : state.activeScope);
+            return;
+          }
+          hideAutoPredict();
           handleSearchSubmit();
         }
       });

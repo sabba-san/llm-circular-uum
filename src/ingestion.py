@@ -265,7 +265,32 @@ def run_ingestion(force_reembed=False):
                 "page_number": page,
                 "chunk_text": text,
                 "required_forms": chunk_forms,
+                "doc_type": "circular",
                 "embed_input": f"{c['ref_no']}: {heading}\n{text}"
+            })
+
+    # PTJ administrative forms (FORM-*) are chunked so they can be retrieved as primary sources
+    for f in forms:
+        rel_path = f["file_path"].replace("\\", "/")
+        full_path = os.path.join(ROOT_DIR, rel_path)
+        if not os.path.exists(full_path):
+            continue
+
+        chunks = chunk_document(full_path, cache_meta=cache.get(full_path))
+        form_label = f"{f['form_code']} - {f['form_title']}"
+        for chk_idx, chk in enumerate(chunks, 1):
+            chunks_to_insert.append({
+                "chunk_id": f"CHK-{f['id']}-{chk_idx:03d}",
+                "circular_id": f["id"],
+                "circular_ref_no": f["form_code"],
+                "department": f["department"],
+                "status": "Active",
+                "section_heading": chk["heading"],
+                "page_number": chk["page"],
+                "chunk_text": chk["text"],
+                "required_forms": form_label,
+                "doc_type": "admin_form",
+                "embed_input": f"{form_label}: {chk['heading']}\n{chk['text']}"
             })
 
     total_chunks = len(chunks_to_insert)
@@ -313,16 +338,16 @@ def run_ingestion(force_reembed=False):
         if use_postgres:
             with pg_con.cursor() as cur:
                 cur.execute("""
-                    INSERT INTO document_chunks (chunk_id, circular_id, circular_ref_no, department, status, section_heading, page_number, chunk_text, required_forms, embedding)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO document_chunks (chunk_id, circular_id, circular_ref_no, department, status, section_heading, page_number, chunk_text, required_forms, doc_type, embedding)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (chunk_id) DO UPDATE SET
-                        chunk_text = EXCLUDED.chunk_text, required_forms = EXCLUDED.required_forms, embedding = EXCLUDED.embedding;
-                """, (ch["chunk_id"], ch["circular_id"], ch["circular_ref_no"], ch["department"], ch["status"], ch["section_heading"], ch["page_number"], ch["chunk_text"], ch["required_forms"], embedding))
+                        chunk_text = EXCLUDED.chunk_text, required_forms = EXCLUDED.required_forms, doc_type = EXCLUDED.doc_type, embedding = EXCLUDED.embedding;
+                """, (ch["chunk_id"], ch["circular_id"], ch["circular_ref_no"], ch["department"], ch["status"], ch["section_heading"], ch["page_number"], ch["chunk_text"], ch["required_forms"], ch.get("doc_type", "circular"), embedding))
         else:
             sqlite_con.execute("""
-                INSERT OR REPLACE INTO document_chunks (chunk_id, circular_id, circular_ref_no, department, status, section_heading, page_number, chunk_text, required_forms, embedding_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (ch["chunk_id"], ch["circular_id"], ch["circular_ref_no"], ch["department"], ch["status"], ch["section_heading"], ch["page_number"], ch["chunk_text"], ch["required_forms"], json.dumps(embedding)))
+                INSERT OR REPLACE INTO document_chunks (chunk_id, circular_id, circular_ref_no, department, status, section_heading, page_number, chunk_text, required_forms, doc_type, embedding_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (ch["chunk_id"], ch["circular_id"], ch["circular_ref_no"], ch["department"], ch["status"], ch["section_heading"], ch["page_number"], ch["chunk_text"], ch["required_forms"], ch.get("doc_type", "circular"), json.dumps(embedding)))
 
     if sqlite_con:
         sqlite_con.commit()
@@ -345,10 +370,18 @@ def run_ingestion(force_reembed=False):
         """)
         sqlite_con.execute("""
             INSERT INTO chunks_fts (chunk_id, circular_ref_no, department, section_heading, chunk_text, college, school)
-            SELECT chunk_id, circular_ref_no, department, section_heading,
-                   chunk_text || ' ' || COALESCE(required_forms, ''),
-                   COALESCE(college, ''), COALESCE(school, '')
-            FROM document_chunks;
+            SELECT d.chunk_id,
+                   COALESCE(d.circular_ref_no, '') || ' ' || COALESCE(c.title, cd.title, rf.form_title, cf.form_title, ''),
+                   d.department,
+                   d.section_heading,
+                   d.chunk_text || ' ' || COALESCE(d.required_forms, '') || ' ' || COALESCE(d.academic_session, ''),
+                   COALESCE(d.college, ''),
+                   COALESCE(d.school, '')
+            FROM document_chunks d
+            LEFT JOIN circulars c ON d.circular_id = c.id
+            LEFT JOIN college_documents cd ON d.circular_id = cd.id
+            LEFT JOIN required_documents_forms rf ON d.circular_id = rf.id
+            LEFT JOIN college_forms cf ON d.circular_id = cf.id;
         """)
         sqlite_con.commit()
         sqlite_con.close()

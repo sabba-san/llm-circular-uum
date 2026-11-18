@@ -66,5 +66,15 @@ def test_sqlite_document_chunks_metadata():
             "SELECT count(*) FROM document_chunks WHERE doc_type = 'college_doc' AND academic_session IS NOT NULL AND trim(academic_session) != ''"
         ).fetchone()[0]
         assert college_sessions > 0
+
+        juu_chunks = con.execute(
+            "SELECT count(*) FROM document_chunks WHERE circular_id LIKE 'CIRC-JUU-%'"
+        ).fetchone()[0]
+        assert juu_chunks > 0
+
+        admin_form_chunks = con.execute(
+            "SELECT count(*) FROM document_chunks WHERE doc_type = 'admin_form'"
+        ).fetchone()[0]
+        assert admin_form_chunks > 0
     finally:
         con.close()

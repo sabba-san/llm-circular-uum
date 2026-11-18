@@ -192,7 +192,8 @@ class AIProvider:
                 "   - Provide a clear **Step-by-Step Procedure Workflow**.\n"
                 "   - Provide a **Mandatory Forms & Documents Checklist**.\n"
                 "3. INLINE CITATION TAGS: Whenever you state a rule, rate, requirement, or form, place the exact tag `[Source 1]`, `[Source 2]`, etc. inline immediately after the statement, alongside the document name and page number.\n"
-                "4. FACTUAL INTEGRITY: Base your answer strictly on the provided official sources. If information is not covered, state clearly that no specific document was found in the database and recommend contacting the responsible Academic Unit or PTJ."
+                "4. FACTUAL INTEGRITY: Base your answer strictly on the provided official sources. If information is not covered, state clearly that no specific document was found in the database and recommend contacting the responsible Academic Unit or PTJ.\n"
+                "5. OUT-OF-SCOPE GUARDRAIL: If the user's question is unrelated to Universiti Utara Malaysia (UUM) policies, circulars, academic handbooks, statutes, or forms (e.g., general math like '2+2', coding, weather, or general trivia), DO NOT answer the off-topic question from general knowledge. Immediately state in '**Key Takeaway:**' that you only answer questions grounded in official UUM documents and circulars."
             )
             context_header = "=== OFFICIAL UUM CIRCULAR & ACADEMIC SOURCES ==="
             query_header = "=== USER QUESTION ==="
@@ -209,7 +210,8 @@ class AIProvider:
                 "   - Format senarai syarat, jam kredit, atau peraturan dalam bentuk senarai bernombor atau 'bullet' dengan setiap item pada baris baharu.\n"
                 "   - Nyatakan **Senarai Semak Prosedur (Step-by-step workflow)** dan **Senarai Borang Wajib**.\n"
                 "3. TAG PETIKAN INLINE: Setiap kali anda menyatakan syarat, kadar, atau peraturan, wajib letakkan tag `[Source 1]`, `[Source 2]`, dsb. secara inline bersama nama dokumen dan muka surat.\n"
-                "4. Jika tiada dokumen yang berkaitan dalam sumber, nyatakan secara jujur bahawa tiada maklumat rasmi ditemui dan sarankan pihak kolej atau PTJ berkenaan untuk dihubungi."
+                "4. Jika tiada dokumen yang berkaitan dalam sumber, nyatakan secara jujur bahawa tiada maklumat rasmi ditemui dan sarankan pihak kolej atau PTJ berkenaan untuk dihubungi.\n"
+                "5. KAWALAN SKOP: Jika soalan pengguna tiada kaitan dengan dokumen, pekeliling, buku panduan akademik, statut, atau borang rasmi UUM (contohnya matematik umum seperti '2+2', pengaturcaraan, atau pengetahuan am), JANGAN jawab soalan di luar skop tersebut. Nyatakan terus dalam '**Rumusan Utama:**' bahawa anda hanya menjawab soalan berkaitan dokumen rasmi UUM sahaja."
             )
             context_header = "=== SUMBER RUJUKAN RASMI UUM ==="
             query_header = "=== SOALAN PENGGUNA ==="

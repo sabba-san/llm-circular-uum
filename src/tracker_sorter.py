@@ -992,6 +992,7 @@ def process_all_documents(use_ocr=True, force_ocr=False):
         ("ICC", "03_Circulars", "circular"),
         ("ICC", "03_forms", "form"),
         ("JUU", "04_circulars", "circular"),
+        ("JUU", "04_statute", "circular"),
         ("JUU", "04_forms", "form"),
     ]
 
@@ -1056,12 +1057,14 @@ def process_all_documents(use_ocr=True, force_ocr=False):
     def circ_sort_key(c):
         status_rank = 0 if c["status"] == "Active" else 1
         year_val = int(c["year"]) if c["year"].isdigit() else 0
-        return (c["department"], status_rank, c["category"], -year_val, c["ref_no"])
+        # JUU sorts last so adding statutes does not renumber existing circular IDs
+        juu_last = 1 if "JUU" in c["department"] else 0
+        return (juu_last, c["department"], status_rank, c["category"], -year_val, c["ref_no"])
 
     circulars.sort(key=circ_sort_key)
 
     for idx, c in enumerate(circulars, 1):
-        c_code = "BEN" if "Bendahari" in c["department"] else ("RMC" if "RMC" in c["department"] else "CIRC")
+        c_code = "BEN" if "Bendahari" in c["department"] else ("RMC" if "RMC" in c["department"] else ("JUU" if "JUU" in c["department"] else "CIRC"))
         c["id"] = f"CIRC-{c_code}-{idx:03d}"
 
     # Sort Forms: Department ASC, Activity Type ASC, Form Code ASC

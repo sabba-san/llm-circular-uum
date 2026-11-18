@@ -1,0 +1,128 @@
+{
+  "name": "UUM Document Intelligence — Hybrid RAG Chat Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "uum-chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000001",
+      "name": "Webhook (UUM Chat)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "uum-chat-webhook-v1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json;\nconst payload = raw.body && typeof raw.body === 'object' ? raw.body : raw;\nconst query = String(payload.query || '').trim();\nif (!query) {\n  throw new Error('Missing required field: query');\n}\nreturn [{\n  json: {\n    query,\n    scope: String(payload.scope || 'All'),\n    filter_active: payload.filter_active !== undefined ? Boolean(payload.filter_active) : true,\n    previous_query: String(payload.previous_query || '')\n  }\n}];"
+      },
+      "id": "a1b2c3d4-0002-4000-8000-000000000002",
+      "name": "Prepare RAG Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://llm-uum:8000/api/ask",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 45000
+        }
+      },
+      "id": "a1b2c3d4-0003-4000-8000-000000000003",
+      "name": "Query LLM UUM RAG",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $input.first().json;\nconst sources = (res.sources || []).map((s, idx) => ({\n  rank: idx + 1,\n  doc_id: s.doc_id,\n  title: s.title,\n  ref_no: s.circular_ref_no,\n  department: s.department,\n  page: s.page_number,\n  score: s.combined_score,\n  preview_url: `http://localhost:8000/api/document/${encodeURIComponent(s.doc_id)}/preview#page=${s.page_number || 1}`\n}));\nreturn [{\n  json: {\n    status: 'ok',\n    query: res.query,\n    scope: res.scope,\n    provider: res.provider,\n    answer: res.answer,\n    citations_count: sources.length,\n    citations: sources,\n    linked_forms: res.linked_forms || [],\n    follow_up_questions: res.follow_up_questions || []\n  }\n}];"
+      },
+      "id": "a1b2c3d4-0004-4000-8000-000000000004",
+      "name": "Format Citations & Forms",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0005-4000-8000-000000000005",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1200, 300]
+    }
+  ],
+  "connections": {
+    "Webhook (UUM Chat)": {
+      "main": [
+        [
+          {
+            "node": "Prepare RAG Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare RAG Payload": {
+      "main": [
+        [
+          {
+            "node": "Query LLM UUM RAG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query LLM UUM RAG": {
+      "main": [
+        [
+          {
+            "node": "Format Citations & Forms",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Citations & Forms": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1"
+}

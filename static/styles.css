@@ -1263,6 +1263,7 @@ html[data-theme="dark"] code.inline-code {
 }
 
 .prompt-box {
+  position: relative;
   pointer-events: auto;
   max-width: 780px;
   margin: 0 auto;
@@ -2121,6 +2122,115 @@ html[data-theme="dark"] .btn-inspect-doc {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* ==================== Follow-Up Questions & Auto-Predict ==================== */
+.followup-section {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.followup-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.followup-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.followup-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color 0.14s ease, background-color 0.14s ease, transform 0.12s ease;
+}
+
+.followup-btn:hover {
+  border-color: var(--accent-blue, #2563eb);
+  background-color: var(--bg-hover, rgba(37, 99, 235, 0.06));
+  transform: translateX(2px);
+}
+
+.followup-arrow {
+  color: var(--accent-blue, #2563eb);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.autopredict-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+  padding: 6px;
+  z-index: 40;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+html[data-theme="dark"] .autopredict-menu {
+  background-color: #202126;
+  border-color: #33353e;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
+}
+
+.autopredict-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 9px;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.autopredict-item:hover,
+.autopredict-item.active {
+  background-color: rgba(37, 99, 235, 0.1);
+}
+
+.autopredict-query {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.autopredict-scope {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background-color: var(--bg-subtle, rgba(128, 128, 128, 0.12));
+  border-radius: 6px;
+  padding: 2px 7px;
+  flex-shrink: 0;
 }
 
 /* ==================== Responsive Breakpoints ==================== */

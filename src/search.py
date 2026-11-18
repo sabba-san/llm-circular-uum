@@ -45,6 +45,7 @@ ENGLISH_TO_MALAY_EXPANSION = {
     "cash": ["wang", "runcit", "panjar", "tunai"],
     "form": ["borang"],
     "forms": ["borang"],
+    "intention": ["intent", "intention", "submission", "proposal", "ahsgs"],
     "rules": ["garis", "panduan", "pekeliling", "syarat"],
     "requirement": ["syarat", "kelayakan"],
     "requirements": ["syarat", "kelayakan"],
@@ -85,10 +86,22 @@ ENGLISH_TO_MALAY_EXPANSION = {
     "deferment": ["tangguh", "pengajian", "penangguhan"],
 }
 
+QUERY_STOPWORDS = {
+    "what", "which", "where", "when", "who", "whom", "whose", "why", "how",
+    "the", "and", "for", "are", "was", "were", "with", "that", "this", "these",
+    "those", "from", "into", "about", "can", "could", "should", "would", "does",
+    "did", "have", "has", "had", "not", "but", "you", "your", "please", "tell",
+    "apakah", "bagaimana", "berapakah", "bilakah", "siapakah", "mengapakah",
+    "yang", "dan", "untuk", "atau", "ini", "itu", "dari", "daripada", "dalam",
+    "kepada", "pada", "bagi", "adalah", "ialah", "boleh", "perlu", "hendaklah",
+    "saya", "kami", "kita", "mereka", "akan", "telah", "sudah", "tidak", "bukan",
+}
+
+
 def expand_query_tokens(query):
     """Expand query tokens deterministically with cross-lingual UUM domain keywords."""
     clean = re.sub(r"[^a-zA-Z0-9\s]", " ", query.lower())
-    words = [w for w in clean.split() if len(w) > 2]
+    words = [w for w in clean.split() if len(w) > 2 and w not in QUERY_STOPWORDS]
     expanded = []
     seen = set()
     for w in words:
@@ -98,7 +111,7 @@ def expand_query_tokens(query):
     for w in words:
         for syn in ENGLISH_TO_MALAY_EXPANSION.get(w, ()):
             for part in syn.split():
-                if len(part) > 2 and part not in seen:
+                if len(part) > 2 and part not in QUERY_STOPWORDS and part not in seen:
                     expanded.append(part)
                     seen.add(part)
     return expanded
@@ -356,7 +369,7 @@ class UUMAssistant:
         q_vec = self.ai.get_embedding(query)
         expanded_tokens = expand_query_tokens(query)
         ref_codes = _extract_reference_codes(query)
-        fts_query = " OR ".join(expanded_tokens[:16]) if expanded_tokens else query
+        fts_query = " OR ".join(expanded_tokens[:16]) if expanded_tokens else ""
         candidates = {}
 
         if self.use_postgres:
@@ -430,51 +443,52 @@ class UUMAssistant:
         else:
             # SQLite FTS5 Search (with expanded tokens)
             fts_limit = 60 if (not scope or scope.lower() in ("all", "all uum")) else 500
-            for attempt in range(2):
-                try:
-                    cur = self.sqlite_con.cursor()
-                    cur.execute("""
-                        SELECT c.chunk_id, c.circular_id, c.circular_ref_no, c.department, c.status, c.section_heading, c.page_number, c.chunk_text, c.required_forms,
-                               c.doc_type, c.college, c.school, c.academic_level, c.academic_session, c.embedding_json,
-                               rank AS bm25_rank
-                        FROM chunks_fts f
-                        JOIN document_chunks c ON f.chunk_id = c.chunk_id
-                        WHERE chunks_fts MATCH ? AND (? = 0 OR c.status = 'Active')
-                        ORDER BY rank LIMIT ?;
-                    """, (fts_query, 1 if filter_active else 0, fts_limit))
-                    for r in cur.fetchall():
-                        cid = r["chunk_id"]
-                        item = {
-                            "chunk_id": cid,
-                            "circular_id": r["circular_id"],
-                            "circular_ref_no": r["circular_ref_no"],
-                            "department": r["department"],
-                            "status": r["status"],
-                            "section_heading": r["section_heading"],
-                            "page_number": r["page_number"],
-                            "chunk_text": r["chunk_text"],
-                            "required_forms": r["required_forms"],
-                            "doc_type": r["doc_type"],
-                            "college": r["college"],
-                            "school": r["school"],
-                            "academic_level": r["academic_level"],
-                            "academic_session": r["academic_session"],
-                        }
-                        if not self._match_Scope(item, scope):
-                            continue
-                        vec = json.loads(r["embedding_json"]) if r["embedding_json"] else []
-                        sim = cosine_similarity(q_vec, vec) if vec else 0.0
-                        item["bm25_score"] = abs(float(r["bm25_rank"]))
-                        item["vec_score"] = sim
-                        candidates[cid] = item
-                        if len(candidates) >= 60:
-                            break
-                    break
-                except sqlite3.Error:
-                    if attempt == 0:
-                        self._reconnect_sqlite()
-                except Exception:
-                    break
+            if fts_query:
+                for attempt in range(2):
+                    try:
+                        cur = self.sqlite_con.cursor()
+                        cur.execute("""
+                            SELECT c.chunk_id, c.circular_id, c.circular_ref_no, c.department, c.status, c.section_heading, c.page_number, c.chunk_text, c.required_forms,
+                                   c.doc_type, c.college, c.school, c.academic_level, c.academic_session, c.embedding_json,
+                                   rank AS bm25_rank
+                            FROM chunks_fts f
+                            JOIN document_chunks c ON f.chunk_id = c.chunk_id
+                            WHERE chunks_fts MATCH ? AND (? = 0 OR c.status = 'Active')
+                            ORDER BY rank LIMIT ?;
+                        """, (fts_query, 1 if filter_active else 0, fts_limit))
+                        for r in cur.fetchall():
+                            cid = r["chunk_id"]
+                            item = {
+                                "chunk_id": cid,
+                                "circular_id": r["circular_id"],
+                                "circular_ref_no": r["circular_ref_no"],
+                                "department": r["department"],
+                                "status": r["status"],
+                                "section_heading": r["section_heading"],
+                                "page_number": r["page_number"],
+                                "chunk_text": r["chunk_text"],
+                                "required_forms": r["required_forms"],
+                                "doc_type": r["doc_type"],
+                                "college": r["college"],
+                                "school": r["school"],
+                                "academic_level": r["academic_level"],
+                                "academic_session": r["academic_session"],
+                            }
+                            if not self._match_Scope(item, scope):
+                                continue
+                            vec = json.loads(r["embedding_json"]) if r["embedding_json"] else []
+                            sim = cosine_similarity(q_vec, vec) if vec else 0.0
+                            item["bm25_score"] = abs(float(r["bm25_rank"]))
+                            item["vec_score"] = sim
+                            candidates[cid] = item
+                            if len(candidates) >= 60:
+                                break
+                        break
+                    except sqlite3.Error:
+                        if attempt == 0:
+                            self._reconnect_sqlite()
+                    except Exception:
+                        break
 
             # SQLite Vector scanning across active chunks to catch semantic matches
             cur = self.sqlite_con.cursor()
@@ -485,6 +499,7 @@ class UUMAssistant:
                 WHERE (? = 0 OR status = 'Active')
             """, (1 if filter_active else 0,))
 
+            min_sim = 0.38 if (expanded_tokens or ref_codes) else 0.62
             vector_candidates = []
             for r in cur.fetchall():
                 cid = r["chunk_id"]
@@ -511,7 +526,7 @@ class UUMAssistant:
                 vec = json.loads(r["embedding_json"]) if r["embedding_json"] else []
                 if vec:
                     sim = cosine_similarity(q_vec, vec)
-                    if sim > 0.38:
+                    if sim > min_sim:
                         vector_candidates.append((sim, item))
 
             vector_candidates.sort(key=lambda x: x[0], reverse=True)
@@ -563,12 +578,15 @@ class UUMAssistant:
                             candidates[cid] = item
                         candidates[cid]["exact_ref_hit"] = True
 
+        asks_for_form = bool(re.search(r"\b(which form|what form|borang apa|apakah borang|senarai borang)\b", query.lower()))
         results = list(candidates.values())
         max_bm25 = max([c["bm25_score"] for c in results], default=1.0) or 1.0
         for c in results:
             base_score = (semantic_weight * c["vec_score"]) + (keyword_weight * (c["bm25_score"] / max_bm25))
             if c.get("exact_ref_hit"):
                 base_score = min(1.0, base_score + 0.35)
+            if asks_for_form and c.get("doc_type") in ("college_form", "admin_form"):
+                base_score = min(1.0, base_score + 0.12)
             c["combined_score"] = round(base_score, 4)
             self._enrich_chunk(c)
 
@@ -628,9 +646,76 @@ class UUMAssistant:
             "sections": sections,
         }
 
-    def ask(self, query, filter_active=True, scope="All", top_k=6):
+    def _generate_follow_up_questions(self, query, retrieved, all_forms):
+        """Build up to 3 grounded follow-up questions in the user's query language."""
+        is_en = is_english_query(query)
+        q_lower = query.strip().lower()
+        suggestions = []
+
+        def _add(text):
+            clean = " ".join(text.split())
+            if clean and clean.lower() != q_lower and clean not in suggestions:
+                suggestions.append(clean)
+
+        # 1. Form-focused follow-up if linked or retrieved forms exist
+        form_target = None
+        if all_forms:
+            form_target = all_forms[0]
+        else:
+            for src in retrieved:
+                if src.get("doc_type") in ("college_form", "admin_form"):
+                    form_target = src
+                    break
+
+        if form_target:
+            ftitle = (form_target.get("title") or form_target.get("code") or "").strip()
+            if ftitle:
+                if is_en:
+                    _add(f"What signatures, approvals, and supporting documents are needed for {ftitle}?")
+                else:
+                    _add(f"Apakah tandatangan, kelulusan, dan dokumen sokongan yang diperlukan bagi {ftitle}?")
+
+        # 2. Deep-dive on primary retrieved document
+        if retrieved:
+            top = retrieved[0]
+            top_title = (top.get("title") or top.get("circular_ref_no") or "").strip()
+            if top_title:
+                if is_en:
+                    _add(f"What are the eligibility criteria, rates, or deadlines under {top_title}?")
+                else:
+                    _add(f"Apakah syarat kelayakan, kadar, atau tempoh masa di bawah {top_title}?")
+
+        # 3. Secondary distinct document follow-up
+        seen_titles = {(retrieved[0].get("title") or "").strip().lower()} if retrieved else set()
+        for src in retrieved[1:]:
+            stitle = (src.get("title") or src.get("circular_ref_no") or "").strip()
+            if stitle and stitle.lower() not in seen_titles:
+                seen_titles.add(stitle.lower())
+                if is_en:
+                    _add(f"What procedures or forms are required in {stitle}?")
+                else:
+                    _add(f"Apakah prosedur atau borang yang berkaitan dalam {stitle}?")
+                break
+
+        # 4. Fallback scope-level follow-up so users always see helpful next questions
+        if len(suggestions) < 3:
+            if is_en:
+                _add("Which official UUM forms or checklists apply to this procedure?")
+                _add("Are there any latest amendments or active circulars related to this topic?")
+            else:
+                _add("Apakah borang rasmi atau senarai semak UUM yang berkaitan dengan urusan ini?")
+                _add("Adakah terdapat pindaan terkini atau pekeliling aktif yang berkaitan?")
+
+        return suggestions[:3]
+
+    def ask(self, query, filter_active=True, scope="All", top_k=6, previous_query=""):
         """Ask question and generate grounded response with strict citations and linked files."""
-        retrieved = self.hybrid_search(query, top_k=top_k, filter_active=filter_active, scope=scope)
+        search_query = query
+        if previous_query and previous_query.strip() and previous_query.strip().lower() != query.strip().lower():
+            if len(query.split()) <= 12 or re.search(r"\b(this|that|these|those|it|ini|itu|tersebut)\b", query.lower()):
+                search_query = f"{query} {previous_query.strip()}"
+
+        retrieved = self.hybrid_search(search_query, top_k=top_k, filter_active=filter_active, scope=scope)
 
         if not retrieved:
             if is_english_query(query):
@@ -642,6 +727,7 @@ class UUMAssistant:
                 "provider": "None",
                 "sources": [],
                 "linked_forms": [],
+                "follow_up_questions": [],
                 "query": query,
                 "scope": scope,
             }
@@ -657,11 +743,14 @@ class UUMAssistant:
                     all_forms.append(fm)
                     seen_fids.add(fm["doc_id"])
 
+        follow_ups = self._generate_follow_up_questions(query, retrieved, all_forms)
+
         return {
             "answer": response_text,
             "provider": provider_name,
             "sources": retrieved,
             "linked_forms": all_forms,
+            "follow_up_questions": follow_ups,
             "query": query,
             "scope": scope,
         }
