@@ -17,6 +17,8 @@ env
 .claude
 .vscode
 .idea
+node_modules
+bombadil-out
 circular_forms
 data
 

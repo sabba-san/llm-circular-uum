@@ -41,3 +41,7 @@ data/*.db-wal
 # IDE & Editor settings
 .vscode/
 .idea/
+
+# Node & Bombadil UI fuzz artifacts
+node_modules/
+bombadil-out/

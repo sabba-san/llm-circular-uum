@@ -36,7 +36,7 @@ Compact index of user-facing views, HTTP routes, webhooks, CLIs, and core module
 - `sort.py`: PTJ circular/form metadata & OCR scanner (`src.tracker_sorter.main`)
 - `ask.py`: CLI Q&A assistant (one-shot & `-i` interactive mode)
 - `eval/run_ir_eval.py`: Phase 5 IR benchmark (`P@K`, `R@K`, `MRR@K`, `nDCG@K`, weight ablation) against `eval/bilingual_eval_set.json` -> `eval/baseline_results.json`
-- `scripts/verify`: Unified verification CLI (`--eval`, `--verbose`)
+- `scripts/verify`: Unified verification CLI (`--eval`, `--ui-fuzz`, `--ui-fuzz-offline`, `--verbose`)
 
 ## 5. Core Domain Package (`src/`)
 - `src/search.py`: `UUMAssistant` (40:60 hybrid BM25 + vector search, `expand_query_tokens`, `QUERY_STOPWORDS`, `_extract_reference_codes`, `_generate_follow_up_questions`, `_ensure_fresh_sqlite`)
@@ -50,6 +50,6 @@ Compact index of user-facing views, HTTP routes, webhooks, CLIs, and core module
 
 ## 6. Data, Config & Tests
 - `data/uum_knowledge.db`: Local SQLite FTS5 + vector knowledge base (also supports `DATABASE_URL` PostgreSQL + `pgvector`)
-- `tests/`: `pytest` suite (`test_search.py`, `test_ingestion.py`, `test_web_app.py`)
+- `tests/`: `pytest` suite (`test_search.py`, `test_ingestion.py`, `test_web_app.py`) and Bombadil property-based UI specification (`tests/bombadil/llm_uum.spec.ts`)
 - `docker-compose.yml`, `Dockerfile`, `docker-entrypoint.sh`: Containerized `llm-uum` (`:8000`) and `n8n` (`:5678`) stack
-- `pyproject.toml` & `requirements-dev.txt`: Linter (`ruff`), type-checker (`mypy`), and dev/test dependencies
+- `pyproject.toml`, `requirements-dev.txt`, `package.json`: Linter (`ruff`), type-checker (`mypy`), dev/test dependencies, and `@antithesishq/bombadil`
