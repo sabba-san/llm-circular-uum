@@ -6,7 +6,6 @@ Usage:
     python3 ask.py --interactive
 """
 
-import sys
 import argparse
 from src.search import UUMAssistant, print_result
 

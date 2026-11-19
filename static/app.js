@@ -742,7 +742,7 @@
     assistantTurn.innerHTML = `
       <div class="turn-assistant-meta">
         <span class="assistant-identity">${ICONS.academic}<span>LLM UUM</span></span>
-        <span class="assistant-engine-badge"><span class="spinner-inline"></span> Searching 689 documents...</span>
+        <span class="assistant-engine-badge"><span class="spinner-inline"></span> Searching ${state.catalogStats.total_documents || 717} documents...</span>
       </div>
       <div class="llm-prose">
         <p>Synthesizing verified rules across circulars, handbooks, and official forms...</p>

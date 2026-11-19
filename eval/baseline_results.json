@@ -9,46 +9,46 @@
     "ALL": {
       "count": 36,
       "p3": 0.4167,
-      "r3": 0.8472,
-      "mrr3": 0.912,
-      "ndcg3": 0.865,
-      "p5": 0.25,
-      "r5": 0.8472,
-      "mrr5": 0.912,
-      "ndcg5": 0.865
+      "r3": 0.8333,
+      "mrr3": 0.9259,
+      "ndcg3": 0.8571,
+      "p5": 0.2556,
+      "r5": 0.8611,
+      "mrr5": 0.9315,
+      "ndcg5": 0.8678
     },
     "en": {
       "count": 12,
-      "p3": 0.4444,
-      "r3": 0.7917,
-      "mrr3": 0.9167,
-      "ndcg3": 0.8213,
-      "p5": 0.2667,
-      "r5": 0.7917,
-      "mrr5": 0.9167,
-      "ndcg5": 0.8213
+      "p3": 0.4722,
+      "r3": 0.8333,
+      "mrr3": 1.0,
+      "ndcg3": 0.8473,
+      "p5": 0.2833,
+      "r5": 0.8333,
+      "mrr5": 1.0,
+      "ndcg5": 0.8473
     },
     "bm": {
       "count": 12,
       "p3": 0.4444,
       "r3": 0.9583,
       "mrr3": 1.0,
-      "ndcg3": 0.9825,
+      "ndcg3": 0.9855,
       "p5": 0.2667,
       "r5": 0.9583,
       "mrr5": 1.0,
-      "ndcg5": 0.9825
+      "ndcg5": 0.9855
     },
     "cross_en_to_bm": {
       "count": 6,
-      "p3": 0.3333,
-      "r3": 0.75,
-      "mrr3": 0.8056,
-      "ndcg3": 0.7827,
+      "p3": 0.2777,
+      "r3": 0.5833,
+      "mrr3": 0.7222,
+      "ndcg3": 0.6776,
       "p5": 0.2,
       "r5": 0.75,
-      "mrr5": 0.8056,
-      "ndcg5": 0.7827
+      "mrr5": 0.7555,
+      "ndcg5": 0.7421
     },
     "cross_bm_to_en": {
       "count": 6,
@@ -68,14 +68,14 @@
       "keyword_weight": 1.0,
       "ALL": {
         "count": 36,
-        "p3": 0.3889,
-        "r3": 0.7778,
-        "mrr3": 0.8472,
-        "ndcg3": 0.7951,
-        "p5": 0.25,
-        "r5": 0.8333,
-        "mrr5": 0.8597,
-        "ndcg5": 0.8189
+        "p3": 0.4074,
+        "r3": 0.8056,
+        "mrr3": 0.875,
+        "ndcg3": 0.8229,
+        "p5": 0.2611,
+        "r5": 0.8611,
+        "mrr5": 0.8875,
+        "ndcg5": 0.847
       }
     },
     {
@@ -84,13 +84,13 @@
       "ALL": {
         "count": 36,
         "p3": 0.4167,
-        "r3": 0.8472,
-        "mrr3": 0.912,
-        "ndcg3": 0.865,
-        "p5": 0.25,
-        "r5": 0.8472,
-        "mrr5": 0.912,
-        "ndcg5": 0.865
+        "r3": 0.8333,
+        "mrr3": 0.9259,
+        "ndcg3": 0.8571,
+        "p5": 0.2556,
+        "r5": 0.8611,
+        "mrr5": 0.9315,
+        "ndcg5": 0.8678
       }
     },
     {
@@ -98,14 +98,14 @@
       "keyword_weight": 0.5,
       "ALL": {
         "count": 36,
-        "p3": 0.3889,
-        "r3": 0.7778,
-        "mrr3": 0.8611,
-        "ndcg3": 0.8092,
-        "p5": 0.25,
-        "r5": 0.8333,
-        "mrr5": 0.875,
-        "ndcg5": 0.834
+        "p3": 0.4259,
+        "r3": 0.8611,
+        "mrr3": 0.9352,
+        "ndcg3": 0.871,
+        "p5": 0.2611,
+        "r5": 0.875,
+        "mrr5": 0.9352,
+        "ndcg5": 0.8739
       }
     },
     {
@@ -113,14 +113,14 @@
       "keyword_weight": 0.4,
       "ALL": {
         "count": 36,
-        "p3": 0.3796,
-        "r3": 0.7639,
-        "mrr3": 0.8611,
-        "ndcg3": 0.8014,
-        "p5": 0.25,
-        "r5": 0.8333,
-        "mrr5": 0.875,
-        "ndcg5": 0.8295
+        "p3": 0.4259,
+        "r3": 0.8611,
+        "mrr3": 0.9213,
+        "ndcg3": 0.8585,
+        "p5": 0.2667,
+        "r5": 0.8889,
+        "mrr5": 0.9213,
+        "ndcg5": 0.8648
       }
     },
     {
@@ -128,14 +128,14 @@
       "keyword_weight": 0.3,
       "ALL": {
         "count": 36,
-        "p3": 0.3704,
-        "r3": 0.75,
-        "mrr3": 0.8611,
-        "ndcg3": 0.7919,
-        "p5": 0.2444,
-        "r5": 0.8194,
-        "mrr5": 0.875,
-        "ndcg5": 0.82
+        "p3": 0.4167,
+        "r3": 0.8333,
+        "mrr3": 0.9074,
+        "ndcg3": 0.839,
+        "p5": 0.25,
+        "r5": 0.8333,
+        "mrr5": 0.9074,
+        "ndcg5": 0.839
       }
     },
     {
@@ -143,45 +143,18 @@
       "keyword_weight": 0.0,
       "ALL": {
         "count": 36,
-        "p3": 0.2778,
-        "r3": 0.5833,
-        "mrr3": 0.6667,
-        "ndcg3": 0.6004,
-        "p5": 0.2056,
-        "r5": 0.7222,
-        "mrr5": 0.6847,
-        "ndcg5": 0.6698
+        "p3": 0.2963,
+        "r3": 0.6389,
+        "mrr3": 0.6991,
+        "ndcg3": 0.6199,
+        "p5": 0.2111,
+        "r5": 0.7361,
+        "mrr5": 0.7241,
+        "ndcg5": 0.6642
       }
     }
   ],
   "lowest_3_queries": [
-    {
-      "id": "EN-03",
-      "direction": "en",
-      "scope": "CAS",
-      "query": "Bachelor of Science in Information Technology with Honours SOC curriculum and credit requirements",
-      "relevant_docs": {
-        "CDOC-CAS-028": 2,
-        "CDOC-CAS-015": 1
-      },
-      "retrieved_top5": [
-        "CDOC-CAS-014",
-        "CDOC-CAS-022",
-        "CDOC-CAS-020",
-        "CDOC-CAS-009",
-        "CDOC-CAS-017"
-      ],
-      "metrics": {
-        "p3": 0.0,
-        "r3": 0.0,
-        "mrr3": 0.0,
-        "ndcg3": 0.0,
-        "p5": 0.0,
-        "r5": 0.0,
-        "mrr5": 0.0,
-        "ndcg5": 0.0
-      }
-    },
     {
       "id": "CROSS-11",
       "direction": "cross_bm_to_en",
@@ -209,6 +182,32 @@
       }
     },
     {
+      "id": "CROSS-04",
+      "direction": "cross_en_to_bm",
+      "scope": "Bendahari",
+      "query": "What is the corporate credit card cash advance and settlement procedure at UUM Bursar?",
+      "relevant_docs": {
+        "CIRC-BEN-012": 2
+      },
+      "retrieved_top5": [
+        "CIRC-BEN-010",
+        "CIRC-BEN-068",
+        "FORM-BEN-030",
+        "CIRC-BEN-009",
+        "CIRC-BEN-012"
+      ],
+      "metrics": {
+        "p3": 0.0,
+        "r3": 0.0,
+        "mrr3": 0.0,
+        "ndcg3": 0.0,
+        "p5": 0.2,
+        "r5": 1.0,
+        "mrr5": 0.2,
+        "ndcg5": 0.3869
+      }
+    },
+    {
       "id": "CROSS-03",
       "direction": "cross_en_to_bm",
       "scope": "RMC",
@@ -218,8 +217,8 @@
         "CIRC-RMC-164": 1
       },
       "retrieved_top5": [
-        "FORM-RMC-073",
         "FORM-RMC-068",
+        "FORM-RMC-073",
         "CIRC-RMC-165",
         "FORM-RMC-069",
         "CIRC-RMC-167"
@@ -298,21 +297,21 @@
         "CDOC-CAS-015": 1
       },
       "retrieved_top5": [
+        "CDOC-CAS-015",
+        "CDOC-CAS-016",
         "CDOC-CAS-014",
-        "CDOC-CAS-022",
-        "CDOC-CAS-020",
-        "CDOC-CAS-009",
-        "CDOC-CAS-017"
+        "CDOC-CAS-025",
+        "CDOC-CAS-018"
       ],
       "metrics": {
-        "p3": 0.0,
-        "r3": 0.0,
-        "mrr3": 0.0,
-        "ndcg3": 0.0,
-        "p5": 0.0,
-        "r5": 0.0,
-        "mrr5": 0.0,
-        "ndcg5": 0.0
+        "p3": 0.3333,
+        "r3": 0.5,
+        "mrr3": 1.0,
+        "ndcg3": 0.2754,
+        "p5": 0.2,
+        "r5": 0.5,
+        "mrr5": 1.0,
+        "ndcg5": 0.2754
       }
     },
     {
@@ -348,8 +347,8 @@
       },
       "retrieved_top5": [
         "CDOC-UNI-001",
-        "CDOC-UNI-004",
         "CDOC-UNI-002",
+        "CDOC-UNI-004",
         "CDOC-UNI-003",
         "CDOC-UNI-005"
       ],
@@ -357,11 +356,11 @@
         "p3": 0.6667,
         "r3": 1.0,
         "mrr3": 1.0,
-        "ndcg3": 0.9639,
+        "ndcg3": 1.0,
         "p5": 0.4,
         "r5": 1.0,
         "mrr5": 1.0,
-        "ndcg5": 0.9639
+        "ndcg5": 1.0
       }
     },
     {
@@ -430,8 +429,8 @@
         "CDOC-CLG-004",
         "CDOC-CLG-006",
         "CDOC-CLG-005",
-        "CDOC-CLG-010",
-        "CDOC-CLG-003"
+        "CDOC-CLG-003",
+        "CDOC-CLG-002"
       ],
       "metrics": {
         "p3": 0.6667,
@@ -581,10 +580,10 @@
       },
       "retrieved_top5": [
         "CIRC-BEN-015",
-        "CIRC-BEN-018",
         "CIRC-BEN-016",
-        "CIRC-BEN-085",
-        "CIRC-BEN-131"
+        "CIRC-BEN-018",
+        "CIRC-BEN-009",
+        "CIRC-BEN-085"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -680,20 +679,20 @@
       },
       "retrieved_top5": [
         "CIRC-RMC-167",
-        "CIRC-RMC-164",
         "CIRC-RMC-165",
+        "CIRC-RMC-164",
         "CIRC-RMC-153",
-        "CIRC-RMC-169"
+        "CIRC-RMC-149"
       ],
       "metrics": {
         "p3": 0.6667,
         "r3": 1.0,
         "mrr3": 1.0,
-        "ndcg3": 0.9639,
+        "ndcg3": 1.0,
         "p5": 0.4,
         "r5": 1.0,
         "mrr5": 1.0,
-        "ndcg5": 0.9639
+        "ndcg5": 1.0
       }
     },
     {
@@ -854,10 +853,10 @@
       },
       "retrieved_top5": [
         "CIRC-BEN-016",
-        "CIRC-BEN-049",
         "CIRC-BEN-018",
-        "CIRC-BEN-010",
-        "CIRC-BEN-014"
+        "CIRC-BEN-012",
+        "CIRC-BEN-014",
+        "CIRC-BEN-015"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -906,8 +905,8 @@
         "CIRC-RMC-164": 1
       },
       "retrieved_top5": [
-        "FORM-RMC-073",
         "FORM-RMC-068",
+        "FORM-RMC-073",
         "CIRC-RMC-165",
         "FORM-RMC-069",
         "CIRC-RMC-167"
@@ -933,20 +932,20 @@
       },
       "retrieved_top5": [
         "CIRC-BEN-010",
-        "CIRC-BEN-012",
+        "CIRC-BEN-068",
+        "FORM-BEN-030",
         "CIRC-BEN-009",
-        "FORM-BEN-022",
-        "CIRC-BEN-032"
+        "CIRC-BEN-012"
       ],
       "metrics": {
-        "p3": 0.3333,
-        "r3": 1.0,
-        "mrr3": 0.5,
-        "ndcg3": 0.6309,
+        "p3": 0.0,
+        "r3": 0.0,
+        "mrr3": 0.0,
+        "ndcg3": 0.0,
         "p5": 0.2,
         "r5": 1.0,
-        "mrr5": 0.5,
-        "ndcg5": 0.6309
+        "mrr5": 0.2,
+        "ndcg5": 0.3869
       }
     },
     {
@@ -986,9 +985,9 @@
       },
       "retrieved_top5": [
         "CDOC-CAS-010",
-        "CDOC-CAS-022",
         "CDOC-CAS-020",
-        "CDOC-CAS-017",
+        "CDOC-CAS-051",
+        "CDOC-CAS-061",
         "CDOC-CAS-057"
       ],
       "metrics": {
@@ -1085,8 +1084,8 @@
       "retrieved_top5": [
         "CFORM-UNI-004",
         "CFORM-UNI-005",
-        "CFORM-UNI-003",
         "CFORM-UNI-006",
+        "CFORM-UNI-003",
         "CDOC-UNI-005"
       ],
       "metrics": {
