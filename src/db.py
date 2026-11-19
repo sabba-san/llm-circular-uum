@@ -204,11 +204,18 @@ def ensure_schema_migrations(con, is_postgres=False):
         ("target_user", "TEXT")
     ]
     cur = con.cursor()
+    if is_postgres:
+        cur.execute(
+            "SELECT column_name FROM information_schema.columns WHERE table_name = 'document_chunks';"
+        )
+        existing_cols = {row[0] for row in cur.fetchall()}
+    else:
+        cur.execute("PRAGMA table_info(document_chunks);")
+        existing_cols = {row[1] for row in cur.fetchall()}
+
     for col_name, col_type in cols_to_add:
-        try:
+        if col_name not in existing_cols:
             cur.execute(f"ALTER TABLE document_chunks ADD COLUMN {col_name} {col_type};")
-        except Exception:
-            pass  # column already exists
 
 def setup_postgresql(db_url):
     """Setup PostgreSQL database tables and pgvector extension."""
@@ -245,6 +252,132 @@ def setup_sqlite(sqlite_path=None):
     con.close()
     logger.info(f"✓ Local SQLite database initialized at: {sqlite_path}")
     return True
+
+
+def rebuild_sqlite_fts(sqlite_con):
+    """Rebuild the SQLite FTS5 virtual table with titles, forms, and academic sessions."""
+    sqlite_con.execute("DROP TABLE IF EXISTS chunks_fts;")
+    sqlite_con.execute("""
+        CREATE VIRTUAL TABLE chunks_fts USING fts5(
+            chunk_id UNINDEXED,
+            circular_ref_no,
+            department,
+            section_heading,
+            chunk_text,
+            college,
+            school
+        );
+    """)
+    sqlite_con.execute("""
+        INSERT INTO chunks_fts (chunk_id, circular_ref_no, department, section_heading, chunk_text, college, school)
+        SELECT d.chunk_id,
+               COALESCE(d.circular_ref_no, '') || ' ' || COALESCE(c.title, cd.title, rf.form_title, cf.form_title, ''),
+               d.department,
+               d.section_heading,
+               d.chunk_text || ' ' || COALESCE(d.required_forms, '') || ' ' || COALESCE(d.academic_session, ''),
+               COALESCE(d.college, ''),
+               COALESCE(d.school, '')
+        FROM document_chunks d
+        LEFT JOIN circulars c ON d.circular_id = c.id
+        LEFT JOIN college_documents cd ON d.circular_id = cd.id
+        LEFT JOIN required_documents_forms rf ON d.circular_id = rf.id
+        LEFT JOIN college_forms cf ON d.circular_id = cf.id;
+    """)
+    sqlite_con.commit()
+
+
+def get_sqlite_path():
+    """Return the canonical path to the local SQLite knowledge base."""
+    return os.path.join(find_root_dir(), "data", "uum_knowledge.db")
+
+
+def get_kb_health_stats(sqlite_path=None):
+    """Verify SQLite connectivity and return document and chunk counts."""
+    import sqlite3
+
+    db_path = sqlite_path or get_sqlite_path()
+    if not os.path.exists(db_path):
+        return {"ok": False, "database": "missing", "documents": {}, "chunks": 0}
+
+    con = None
+    try:
+        con = sqlite3.connect(db_path, timeout=5.0)
+        cur = con.cursor()
+        cur.execute("SELECT 1;")
+        cur.fetchone()
+
+        def _count(query):
+            try:
+                return cur.execute(query).fetchone()[0]
+            except sqlite3.OperationalError:
+                return 0
+
+        circulars = _count("SELECT count(*) FROM circulars;")
+        active_circulars = _count("SELECT count(*) FROM circulars WHERE status = 'Active';")
+        superseded_circulars = _count("SELECT count(*) FROM circulars WHERE status = 'Superseded';")
+        admin_forms = _count("SELECT count(*) FROM required_documents_forms;")
+        college_docs = _count("SELECT count(*) FROM college_documents;")
+        college_forms = _count("SELECT count(*) FROM college_forms;")
+        chunks = _count("SELECT count(*) FROM document_chunks;")
+
+        return {
+            "ok": chunks > 0,
+            "database": "ok" if chunks > 0 else "empty",
+            "documents": {
+                "circulars": circulars,
+                "active_circulars": active_circulars,
+                "superseded_circulars": superseded_circulars,
+                "admin_forms": admin_forms,
+                "college_documents": college_docs,
+                "college_forms": college_forms,
+                "total": circulars + admin_forms + college_docs + college_forms,
+            },
+            "chunks": chunks,
+        }
+    except sqlite3.Error as exc:
+        logger.warning(f"SQLite health check failed: {exc}")
+        return {"ok": False, "database": "error", "detail": str(exc), "documents": {}, "chunks": 0}
+    finally:
+        if con is not None:
+            con.close()
+
+
+def load_catalog_tables(sqlite_path=None):
+    """Load catalog tables as lists of dicts plus summary stats for UI dashboards."""
+    import sqlite3
+
+    db_path = sqlite_path or get_sqlite_path()
+    if not os.path.exists(db_path):
+        return [], [], [], [], {}
+
+    con = sqlite3.connect(db_path, timeout=60.0)
+    con.row_factory = sqlite3.Row
+    try:
+        def _fetch(query):
+            try:
+                return [dict(r) for r in con.execute(query).fetchall()]
+            except sqlite3.OperationalError:
+                return []
+
+        circ_rows = _fetch("SELECT * FROM circulars ORDER BY department, status, year DESC;")
+        form_rows = _fetch("SELECT * FROM required_documents_forms ORDER BY department, form_code;")
+        college_doc_rows = _fetch("SELECT * FROM college_documents ORDER BY college, school, academic_session DESC;")
+        college_form_rows = _fetch("SELECT * FROM college_forms ORDER BY college, school, form_code;")
+
+        health = get_kb_health_stats(db_path)
+        docs = health.get("documents", {})
+        stats = {
+            "total_circulars": len(circ_rows),
+            "active_circulars": docs.get("active_circulars", 0),
+            "superseded_circulars": docs.get("superseded_circulars", 0),
+            "total_forms": len(form_rows),
+            "total_college_docs": len(college_doc_rows),
+            "total_college_forms": len(college_form_rows),
+            "total_chunks": health.get("chunks", 0),
+        }
+        return circ_rows, form_rows, college_doc_rows, college_form_rows, stats
+    finally:
+        con.close()
 
 def init_database():
     db_url = os.environ.get("DATABASE_URL", "").strip()

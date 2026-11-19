@@ -5,18 +5,20 @@ Interactive Query CLI with Hybrid Retrieval (BM25 + Semantic Vector Search)
 """
 
 import os
-import sys
 import json
 import re
 import sqlite3
-import argparse
+import logging
 import math
+from typing import Any
 from src.ai_provider import AIProvider, load_env, find_root_dir, is_english_query
+from src.db import get_sqlite_path
 
 load_env()
+logger = logging.getLogger("SearchEngine")
 
 ROOT_DIR = find_root_dir()
-SQLITE_DB = os.path.join(ROOT_DIR, "data", "uum_knowledge.db")
+SQLITE_DB = get_sqlite_path()
 
 ENGLISH_TO_MALAY_EXPANSION = {
     "gra": ["gra", "pembantu", "penyelidik", "siswazah", "lantikan", "rmc008"],
@@ -129,7 +131,7 @@ def _extract_reference_codes(query):
 
 def cosine_similarity(v1, v2):
     """Compute cosine similarity between two float vectors."""
-    dot = sum(a * b for a, b in zip(v1, v2))
+    dot = sum(a * b for a, b in zip(v1, v2, strict=False))
     norm1 = math.sqrt(sum(a * a for a in v1)) or 1.0
     norm2 = math.sqrt(sum(b * b for b in v2)) or 1.0
     return dot / (norm1 * norm2)
@@ -146,7 +148,8 @@ class UUMAssistant:
             try:
                 import psycopg2
                 self.pg_con = psycopg2.connect(self.db_url)
-            except Exception:
+            except (ImportError, OSError, RuntimeError) as exc:
+                logger.warning(f"PostgreSQL unavailable ({exc}); falling back to SQLite.")
                 self.use_postgres = False
 
         if not self.use_postgres:
@@ -167,8 +170,8 @@ class UUMAssistant:
         try:
             if self.sqlite_con:
                 self.sqlite_con.close()
-        except Exception:
-            pass
+        except sqlite3.Error as exc:
+            logger.debug(f"Error closing previous SQLite connection: {exc}")
         self.sqlite_con = sqlite3.connect(SQLITE_DB, timeout=60.0, check_same_thread=False)
         self.sqlite_con.row_factory = sqlite3.Row
         self._db_mtime = os.path.getmtime(SQLITE_DB)
@@ -184,8 +187,8 @@ class UUMAssistant:
 
     def _load_doc_registry(self):
         """Build lookup dictionary mapping document/form IDs to file_path, format, and metadata."""
-        registry = {}
-        forms_list = []
+        registry: dict[str, dict[str, Any]] = {}
+        forms_list: list[dict[str, Any]] = []
         if not self.sqlite_con:
             return registry, forms_list
 
@@ -210,8 +213,8 @@ class UUMAssistant:
                     "school": r["department"],
                     "academic_level": "University-Wide",
                 }
-        except Exception:
-            pass
+        except sqlite3.OperationalError as exc:
+            logger.debug(f"circulars table unavailable: {exc}")
 
         try:
             cur.execute("SELECT id, form_code, form_title, department, related_circular, project_activity_type, is_mandatory, file_path, file_format FROM required_documents_forms;")
@@ -236,8 +239,8 @@ class UUMAssistant:
                 }
                 registry[r["id"]] = entry
                 forms_list.append(entry)
-        except Exception:
-            pass
+        except sqlite3.OperationalError as exc:
+            logger.debug(f"required_documents_forms table unavailable: {exc}")
 
         try:
             cur.execute("SELECT id, title, college, school, category, academic_level, academic_session, status, file_format, file_path FROM college_documents;")
@@ -259,8 +262,8 @@ class UUMAssistant:
                     "school": r["school"],
                     "academic_level": r["academic_level"] or "All Levels",
                 }
-        except Exception:
-            pass
+        except sqlite3.OperationalError as exc:
+            logger.debug(f"college_documents table unavailable: {exc}")
 
         try:
             cur.execute("SELECT id, form_code, form_title, college, school, form_category, target_user, academic_session, file_format, file_path FROM college_forms;")
@@ -285,8 +288,8 @@ class UUMAssistant:
                 }
                 registry[r["id"]] = entry
                 forms_list.append(entry)
-        except Exception:
-            pass
+        except sqlite3.OperationalError as exc:
+            logger.debug(f"required_documents_forms table unavailable: {exc}")
 
         return registry, forms_list
 
@@ -372,7 +375,7 @@ class UUMAssistant:
         fts_query = " OR ".join(expanded_tokens[:16]) if expanded_tokens else ""
         candidates = {}
 
-        if self.use_postgres:
+        if self.use_postgres and self.pg_con is not None:
             with self.pg_con.cursor() as cur:
                 # 1. BM25 Search
                 cur.execute("""
@@ -440,7 +443,7 @@ class UUMAssistant:
                         }
                         if self._match_Scope(item, scope):
                             candidates[cid] = item
-        else:
+        elif self.sqlite_con is not None:
             # SQLite FTS5 Search (with expanded tokens)
             fts_limit = 60 if (not scope or scope.lower() in ("all", "all uum")) else 500
             if fts_query:
@@ -484,11 +487,12 @@ class UUMAssistant:
                             if len(candidates) >= 60:
                                 break
                         break
-                    except sqlite3.Error:
+                    except sqlite3.Error as exc:
+                        logger.warning(f"SQLite FTS5 query error (attempt {attempt + 1}): {exc}")
                         if attempt == 0:
                             self._reconnect_sqlite()
-                    except Exception:
-                        break
+                        else:
+                            break
 
             # SQLite Vector scanning across active chunks to catch semantic matches
             cur = self.sqlite_con.cursor()
@@ -638,8 +642,8 @@ class UUMAssistant:
                             "page": sc.get("page", 1),
                             "text": sc.get("text", ""),
                         })
-                except Exception:
-                    pass
+                except (OSError, ValueError) as exc:
+                    logger.warning(f"On-demand preview extraction failed for {doc_id}: {exc}")
 
         return {
             "meta": meta,

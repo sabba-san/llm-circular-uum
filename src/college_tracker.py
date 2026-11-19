@@ -16,7 +16,8 @@ import sys
 import argparse
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from src.tracker_sorter import ExcelWriter, find_root_dir
+from src.ai_provider import find_root_dir
+from src.tracker_sorter import ExcelWriter
 
 BASE_DIR = find_root_dir()
 COLLEGE_DIR = os.path.join(BASE_DIR, "circular_forms", "College_documents")
@@ -306,11 +307,8 @@ def scan_college_documents():
     return docs, forms
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Generate UUM College Documents Master Excel Tracker")
-    parser.add_argument("--output", default=DEFAULT_OUT, help="Output path for college_documents_tracker.xlsx")
-    args = parser.parse_args()
-
+def run_college_tracker(output=DEFAULT_OUT):
+    """Generate college_documents_tracker.xlsx programmatically without mutating sys.argv."""
     docs, forms = scan_college_documents()
 
     doc_headers = [
@@ -370,7 +368,7 @@ def main():
     ]
 
     ExcelWriter.write_workbook(
-        args.output,
+        output,
         "college_docs",
         doc_headers,
         doc_rows,
@@ -385,11 +383,18 @@ def main():
     print("=" * 72)
     print("  UUM COLLEGE DOCUMENTS MASTER TRACKER GENERATED")
     print("=" * 72)
-    print(f"  • Output File   : {args.output}")
+    print(f"  • Output File   : {output}")
     print(f"  • Sheet 1       : college_docs  ({len(docs)} rows — {active_docs} Active, {archive_docs} Archive)")
     print(f"  • Sheet 2       : college_forms ({len(forms)} rows)")
     print(f"  • Total Catalog : {len(docs) + len(forms)} standardized files")
     print("=" * 72)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Generate UUM College Documents Master Excel Tracker")
+    parser.add_argument("--output", default=DEFAULT_OUT, help="Output path for college_documents_tracker.xlsx")
+    args = parser.parse_args()
+    run_college_tracker(output=args.output)
 
 
 if __name__ == "__main__":

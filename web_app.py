@@ -11,7 +11,6 @@ Usage:
 """
 
 import os
-import sqlite3
 import mimetypes
 from urllib.parse import quote
 from starlette.applications import Starlette
@@ -19,13 +18,14 @@ from starlette.responses import JSONResponse, FileResponse, HTMLResponse
 from starlette.routing import Route, Mount
 from starlette.staticfiles import StaticFiles
 from src.ai_provider import load_env, find_root_dir
+from src.db import get_sqlite_path, get_kb_health_stats
 from src.search import UUMAssistant
 
 load_env()
 
 ROOT_DIR = os.path.realpath(find_root_dir())
 ALLOWED_DOCS_DIR = os.path.realpath(os.path.join(ROOT_DIR, "circular_forms"))
-SQLITE_DB = os.path.join(ROOT_DIR, "data", "uum_knowledge.db")
+SQLITE_DB = get_sqlite_path()
 TEMPLATE_PATH = os.path.join(ROOT_DIR, "templates", "index.html")
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
 
@@ -69,18 +69,9 @@ async def api_catalog(request):
     ast = get_assistant()
     items = list(ast.doc_registry.values())
 
-    total_chunks = 0
-    active_circulars = 0
-    if os.path.exists(SQLITE_DB):
-        con = sqlite3.connect(SQLITE_DB, timeout=60.0)
-        try:
-            cur = con.cursor()
-            cur.execute("SELECT count(*) FROM document_chunks;")
-            total_chunks = cur.fetchone()[0]
-            cur.execute("SELECT count(*) FROM circulars WHERE status = 'Active';")
-            active_circulars = cur.fetchone()[0]
-        finally:
-            con.close()
+    health = get_kb_health_stats(SQLITE_DB)
+    total_chunks = health.get("chunks", 0)
+    active_circulars = health.get("documents", {}).get("active_circulars", 0)
 
     stats = {
         "total_documents": len(items),
@@ -99,7 +90,7 @@ async def api_ask(request):
     """Execute hybrid RAG search + synthesis and return sources with document preview metadata."""
     try:
         body = await request.json()
-    except Exception:
+    except (ValueError, TypeError):
         return JSONResponse({"error": "Invalid JSON request body."}, status_code=400)
 
     query = str(body.get("query", "")).strip()
@@ -189,63 +180,32 @@ async def api_serve_file(request):
 
 async def health_check(request):
     """Lightweight healthcheck verifying SQLite connectivity and returning index counts."""
-    if not os.path.exists(SQLITE_DB):
+    health = get_kb_health_stats(SQLITE_DB)
+    db_state = health.get("database", "error")
+    if db_state == "missing":
         return JSONResponse({"status": "error", "database": "missing"}, status_code=503)
-
-    con = None
-    try:
-        con = sqlite3.connect(SQLITE_DB, timeout=5.0)
-        cur = con.cursor()
-        cur.execute("SELECT 1;")
-        cur.fetchone()
-
-        def _count(query):
-            try:
-                return cur.execute(query).fetchone()[0]
-            except sqlite3.OperationalError:
-                return 0
-
-        circulars = _count("SELECT count(*) FROM circulars;")
-        active_circulars = _count("SELECT count(*) FROM circulars WHERE status = 'Active';")
-        admin_forms = _count("SELECT count(*) FROM required_documents_forms;")
-        college_docs = _count("SELECT count(*) FROM college_documents;")
-        college_forms = _count("SELECT count(*) FROM college_forms;")
-        chunks = _count("SELECT count(*) FROM document_chunks;")
-
-        documents = {
-            "circulars": circulars,
-            "active_circulars": active_circulars,
-            "admin_forms": admin_forms,
-            "college_documents": college_docs,
-            "college_forms": college_forms,
-            "total": circulars + admin_forms + college_docs + college_forms,
-        }
-        if chunks == 0:
-            return JSONResponse(
-                {
-                    "status": "error",
-                    "database": "empty",
-                    "detail": "document_chunks table has 0 indexed chunks",
-                    "documents": documents,
-                    "chunks": 0,
-                },
-                status_code=503,
-            )
-
-        return JSONResponse({
-            "status": "ok",
-            "database": "ok",
-            "documents": documents,
-            "chunks": chunks,
-        })
-    except Exception as exc:
+    if db_state == "empty":
         return JSONResponse(
-            {"status": "error", "database": "error", "detail": str(exc)},
+            {
+                "status": "error",
+                "database": "empty",
+                "detail": "document_chunks table has 0 indexed chunks",
+                "documents": health.get("documents", {}),
+                "chunks": 0,
+            },
             status_code=503,
         )
-    finally:
-        if con is not None:
-            con.close()
+    if not health.get("ok"):
+        return JSONResponse(
+            {"status": "error", "database": "error", "detail": health.get("detail", "unknown error")},
+            status_code=503,
+        )
+    return JSONResponse({
+        "status": "ok",
+        "database": "ok",
+        "documents": health["documents"],
+        "chunks": health["chunks"],
+    })
 
 
 routes = [

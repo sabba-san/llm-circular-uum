@@ -14,7 +14,10 @@ import re
 import tempfile
 import zipfile
 import subprocess
+import logging
 import xml.etree.ElementTree as ET
+
+logger = logging.getLogger("CollegeExtractor")
 
 def extract_chunks_from_pdf(filepath, max_pages=150):
     """Extract page-level chunks from PDF using fast pdftotext; fallback to OCR only if PDF has no text."""
@@ -22,7 +25,8 @@ def extract_chunks_from_pdf(filepath, max_pages=150):
     try:
         res = subprocess.run(["pdftotext", filepath, "-"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20)
         full_text = res.stdout.decode("utf-8", errors="ignore")
-    except Exception:
+    except (subprocess.SubprocessError, OSError) as exc:
+        logger.debug(f"pdftotext failed on {filepath}: {exc}")
         full_text = ""
 
     # If the entire PDF has almost no text (< 100 chars), it is a scanned document -> use OCR
@@ -56,8 +60,8 @@ def extract_chunks_from_pdf(filepath, max_pages=150):
                                 "heading": f"Scanned Page {idx}",
                                 "text": ocr_txt[:1400]
                             })
-        except Exception:
-            pass
+        except (subprocess.SubprocessError, OSError) as exc:
+            logger.debug(f"PDF OCR failed on {filepath}: {exc}")
         return chunks
 
     pages = full_text.split("\x0c") if full_text else []
@@ -113,7 +117,7 @@ def extract_chunks_from_docx(filepath):
         tree = ET.fromstring(xml_content)
 
         current_heading = "General"
-        current_paras = []
+        current_paras: list[str] = []
         current_len = 0
 
         for p in tree.iter("{http://schemas.openxmlformats.org/wordprocessingml/2006/main}p"):
@@ -150,8 +154,8 @@ def extract_chunks_from_docx(filepath):
                 "heading": current_heading[:100],
                 "text": "\n".join(current_paras)[:1400]
             })
-    except Exception:
-        pass
+    except (zipfile.BadZipFile, KeyError, ET.ParseError, OSError) as exc:
+        logger.debug(f"DOCX extraction failed on {filepath}: {exc}")
     return chunks
 
 def extract_chunks_from_doc(filepath):
@@ -170,10 +174,10 @@ def extract_chunks_from_doc(filepath):
         ascii_text = "\n".join(w.decode("latin1", errors="ignore").strip() for w in ascii_words if len(w.strip()) > 3)
 
         chosen = utf16_text if len(utf16_text) > len(ascii_text) else ascii_text
-        lines = [l.strip() for l in chosen.split("\n") if len(l.strip()) > 4]
+        lines = [line.strip() for line in chosen.split("\n") if len(line.strip()) > 4]
 
         current_heading = "Form Content"
-        curr_paras = []
+        curr_paras: list[str] = []
         curr_len = 0
 
         for line in lines:
@@ -205,8 +209,8 @@ def extract_chunks_from_doc(filepath):
                 "heading": current_heading[:100],
                 "text": "\n".join(curr_paras)[:1400]
             })
-    except Exception:
-        pass
+    except (zipfile.BadZipFile, KeyError, ET.ParseError, OSError) as exc:
+        logger.debug(f"DOCX extraction failed on {filepath}: {exc}")
     return chunks
 
 def extract_chunks_from_image(filepath):
@@ -215,25 +219,26 @@ def extract_chunks_from_image(filepath):
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
             ocr_out = os.path.join(tmpdir, "ocr")
-            res = subprocess.run(
+            subprocess.run(
                 ["tesseract", filepath, ocr_out],
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+                stderr=subprocess.PIPE,
+                timeout=30,
             )
             txt_file = ocr_out + ".txt"
             if os.path.exists(txt_file):
                 with open(txt_file, "r", encoding="utf-8", errors="ignore") as f:
                     txt = f.read().strip()
                 if len(txt) > 20:
-                    lines = [l.strip() for l in txt.split("\n") if l.strip()]
+                    lines = [line.strip() for line in txt.split("\n") if line.strip()]
                     heading = lines[0][:80] if lines else "Infographic / Scanned Form"
                     chunks.append({
                         "page": 1,
                         "heading": heading,
                         "text": txt[:1400]
                     })
-    except Exception:
-        pass
+    except (subprocess.SubprocessError, OSError) as exc:
+        logger.debug(f"Image OCR failed on {filepath}: {exc}")
     return chunks
 
 def extract_document_chunks(filepath, max_pages=150):

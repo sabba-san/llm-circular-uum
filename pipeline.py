@@ -9,23 +9,12 @@ Usage:
     python3 pipeline.py [--all | --circulars-only | --college-only] [--clean] [--force-reembed] [--force-ocr]
 """
 
-import sys
 import time
 import argparse
-from src.tracker_sorter import main as run_sorter
-from src.college_tracker import main as run_college_tracker
+from src.tracker_sorter import run_sorter
+from src.college_tracker import run_college_tracker
 from src.ingestion import run_ingestion as run_circular_ingestion
 from src.college_ingestion import run_college_ingestion
-
-
-def _run_with_argv(fn, argv):
-    """Invoke a CLI main() with a temporary sys.argv list."""
-    sys_argv_backup = sys.argv
-    sys.argv = argv
-    try:
-        fn()
-    finally:
-        sys.argv = sys_argv_backup
 
 
 def main():
@@ -51,17 +40,12 @@ def main():
 
     print("\n[STEP 1/2] Scanning Documents & Updating Master Trackers...")
     if run_circulars:
-        sorter_args = ["sort.py"]
-        if args.clean:
-            sorter_args.append("--clean")
-        if args.force_ocr:
-            sorter_args.append("--force-ocr")
         print("  -> Updating PTJ Circulars & Forms Tracker...")
-        _run_with_argv(run_sorter, sorter_args)
+        run_sorter(clean=args.clean, force_ocr=args.force_ocr)
 
     if run_college:
         print("  -> Updating College Documents & Forms Tracker...")
-        _run_with_argv(run_college_tracker, ["college_tracker.py"])
+        run_college_tracker()
 
     print("\n[STEP 2/2] Updating Search Index & Vector Embeddings...")
     if run_circulars:

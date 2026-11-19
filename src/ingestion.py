@@ -17,7 +17,7 @@ import zipfile
 import xml.etree.ElementTree as ET
 import logging
 from src.ai_provider import AIProvider, load_env, find_root_dir
-from src.db import setup_sqlite
+from src.db import setup_sqlite, rebuild_sqlite_fts
 
 load_env()
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s: %(message)s")
@@ -99,28 +99,28 @@ def chunk_document(filepath, cache_meta=None):
 
     if ext == ".pdf":
         try:
-            res = subprocess.run(["pdfinfo", filepath], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            res = subprocess.run(["pdfinfo", filepath], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=15)
             info = res.stdout.decode("utf-8", errors="ignore")
             m = re.search(r"Pages:\s+(\d+)", info)
             num_pages = int(m.group(1)) if m else 1
 
             for p in range(1, min(num_pages + 1, 20)):
-                res_p = subprocess.run(["pdftotext", "-f", str(p), "-l", str(p), filepath, "-"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                res_p = subprocess.run(["pdftotext", "-f", str(p), "-l", str(p), filepath, "-"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20)
                 txt = res_p.stdout.decode("utf-8", errors="ignore").strip()
                 if len(txt) > 40:
                     paragraphs = [para.strip() for para in txt.split("\n\n") if len(para.strip()) > 30]
                     if not paragraphs:
                         paragraphs = [txt]
 
-                    for idx, para in enumerate(paragraphs, 1):
+                    for _idx, para in enumerate(paragraphs, 1):
                         heading = para.split("\n")[0][:80]
                         chunks.append({
                             "page": p,
                             "heading": heading,
                             "text": para[:1200]
                         })
-        except Exception:
-            pass
+        except (subprocess.SubprocessError, OSError) as exc:
+            logger.debug(f"PDF chunking failed on {filepath}: {exc}")
 
     elif ext == ".docx":
         try:
@@ -144,13 +144,13 @@ def chunk_document(filepath, cache_meta=None):
 
             if current_text:
                 chunks.append({"page": 1, "heading": current_heading, "text": " ".join(current_text)[:1200]})
-        except Exception:
-            pass
+        except (zipfile.BadZipFile, KeyError, ET.ParseError, OSError) as exc:
+            logger.debug(f"DOCX chunking failed on {filepath}: {exc}")
 
     if not chunks and cache_meta:
         raw_text = cache_meta.get("raw_text", "").strip()
         if raw_text:
-            lines = [l.strip() for l in raw_text.split("\n") if l.strip()]
+            lines = [line.strip() for line in raw_text.split("\n") if line.strip()]
             for i in range(0, min(len(lines), 30), 6):
                 sec = " ".join(lines[i:i+6])
                 if len(sec) > 30:
@@ -168,8 +168,8 @@ def run_ingestion(force_reembed=False):
         try:
             with open(CACHE_FILE, "r") as f:
                 cache = json.load(f)
-        except Exception:
-            pass
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning(f"Failed to load metadata cache {CACHE_FILE}: {exc}")
 
     db_url = os.environ.get("DATABASE_URL", "").strip()
     use_postgres = bool(db_url)
@@ -309,8 +309,8 @@ def run_ingestion(force_reembed=False):
             for row in cur.fetchall():
                 try:
                     existing_embeddings[row[0]] = json.loads(row[1])
-                except Exception:
-                    pass
+                except (ValueError, TypeError) as exc:
+                    logger.debug(f"Skipping invalid cached embedding for {row[0]}: {exc}")
 
     new_chunks = [ch for ch in chunks_to_insert if ch["chunk_id"] not in existing_embeddings]
     if new_chunks:
@@ -356,34 +356,7 @@ def run_ingestion(force_reembed=False):
 
     if sqlite_con:
         print("[*] Building SQLite FTS5 Full-Text Search index...")
-        sqlite_con.execute("DROP TABLE IF EXISTS chunks_fts;")
-        sqlite_con.execute("""
-            CREATE VIRTUAL TABLE chunks_fts USING fts5(
-                chunk_id UNINDEXED,
-                circular_ref_no,
-                department,
-                section_heading,
-                chunk_text,
-                college,
-                school
-            );
-        """)
-        sqlite_con.execute("""
-            INSERT INTO chunks_fts (chunk_id, circular_ref_no, department, section_heading, chunk_text, college, school)
-            SELECT d.chunk_id,
-                   COALESCE(d.circular_ref_no, '') || ' ' || COALESCE(c.title, cd.title, rf.form_title, cf.form_title, ''),
-                   d.department,
-                   d.section_heading,
-                   d.chunk_text || ' ' || COALESCE(d.required_forms, '') || ' ' || COALESCE(d.academic_session, ''),
-                   COALESCE(d.college, ''),
-                   COALESCE(d.school, '')
-            FROM document_chunks d
-            LEFT JOIN circulars c ON d.circular_id = c.id
-            LEFT JOIN college_documents cd ON d.circular_id = cd.id
-            LEFT JOIN required_documents_forms rf ON d.circular_id = rf.id
-            LEFT JOIN college_forms cf ON d.circular_id = cf.id;
-        """)
-        sqlite_con.commit()
+        rebuild_sqlite_fts(sqlite_con)
         sqlite_con.close()
 
     if pg_con:

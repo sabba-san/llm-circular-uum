@@ -1,0 +1,189 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
+PYTHON="./venv/bin/python3"
+if [ ! -x "$PYTHON" ]; then
+    PYTHON="python3"
+fi
+
+exec "$PYTHON" -u - "$@" <<'PY'
+import argparse
+import os
+import shutil
+import subprocess
+import sys
+import time
+
+ROOT_DIR = os.getcwd()
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
+
+def find_node():
+    node = shutil.which("node")
+    if node:
+        return node
+    nvm_node = "/home/abbas/.nvm/versions/node/v26.1.0/bin/node"
+    return nvm_node if os.path.isfile(nvm_node) and os.access(nvm_node, os.X_OK) else None
+
+
+def run_step(name, fn, verbose=False):
+    t0 = time.time()
+    ok, detail, output = fn()
+    elapsed = time.time() - t0
+    status = "PASS" if ok else "FAIL"
+    suffix = f" — {detail}" if detail else ""
+    print(f"[{status}] {name:<12} ({elapsed:.1f}s){suffix}")
+    if (not ok or verbose) and output:
+        lines = [line for line in output.strip().splitlines() if line.strip()]
+        cap = len(lines) if verbose else 25
+        for line in lines[:cap]:
+            print(f"  {line}")
+        if len(lines) > cap:
+            print(f"  ... ({len(lines) - cap} more lines, re-run with --verbose)")
+    return ok, elapsed
+
+
+def step_lint():
+    ruff = os.path.join(ROOT_DIR, "venv", "bin", "ruff")
+    if not os.path.isfile(ruff):
+        ruff = shutil.which("ruff") or ""
+    if not ruff:
+        return False, "ruff not installed", "Run: ./venv/bin/pip install -r requirements-dev.txt"
+    proc = subprocess.run(
+        [ruff, "check", "web_app.py", "pipeline.py", "ingest.py", "ask.py", "src/", "tests/", "eval/", "scripts/"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    out = (proc.stdout + "\n" + proc.stderr).strip()
+    return proc.returncode == 0, "ruff clean" if proc.returncode == 0 else "lint errors", out
+
+
+def step_types():
+    mypy = os.path.join(ROOT_DIR, "venv", "bin", "mypy")
+    if not os.path.isfile(mypy):
+        mypy = shutil.which("mypy") or ""
+    if not mypy:
+        return False, "mypy not installed", "Run: ./venv/bin/pip install -r requirements-dev.txt"
+    proc = subprocess.run(
+        [mypy, "web_app.py", "src/db.py", "src/search.py"],
+        capture_output=True,
+        text=True,
+        timeout=45,
+    )
+    out = (proc.stdout + "\n" + proc.stderr).strip()
+    summary = out.splitlines()[-1] if out else ""
+    return proc.returncode == 0, summary if proc.returncode == 0 else "type errors", out
+
+
+def step_boundaries():
+    proc = subprocess.run(
+        [sys.executable, "scripts/check_boundaries.py"],
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+    out = (proc.stdout + "\n" + proc.stderr).strip()
+    summary = out.splitlines()[-1] if out else ""
+    return proc.returncode == 0, summary if proc.returncode == 0 else "boundary violations", out
+
+
+def step_pytest():
+    proc = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", "--tb=short", "tests/"],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    out = (proc.stdout + "\n" + proc.stderr).strip()
+    summary = out.splitlines()[-1] if out else ""
+    return proc.returncode == 0, summary, out
+
+
+def step_smoke():
+    try:
+        import logging
+        for lg in ("httpx", "httpx2", "httpcore", "httpcore2"):
+            logging.getLogger(lg).setLevel(logging.WARNING)
+        from starlette.testclient import TestClient
+        import web_app
+
+        ast = web_app.get_assistant()
+        orig_keys = (ast.ai.gemini_key, ast.ai.groq_key, ast.ai.openrouter_key)
+        try:
+            ast.ai.gemini_key = ""
+            ast.ai.groq_key = ""
+            ast.ai.openrouter_key = ""
+            client = TestClient(web_app.app)
+
+            r_health = client.get("/health")
+            if r_health.status_code != 200 or r_health.json().get("chunks", 0) <= 0:
+                return False, f"health={r_health.status_code}", r_health.text
+
+            r_on = client.post("/api/ask", json={"query": "RMC 008", "scope": "RMC"})
+            on_data = r_on.json()
+            on_sources = len(on_data.get("sources", []))
+            on_fups = len(on_data.get("follow_up_questions", []))
+            if r_on.status_code != 200 or on_sources == 0 or on_fups == 0:
+                return False, f"on_topic sources={on_sources} follow_ups={on_fups}", r_on.text
+
+            r_off = client.post("/api/ask", json={"query": "what is 2+2", "scope": "RMC"})
+            off_sources = len(r_off.json().get("sources", []))
+            if r_off.status_code != 200 or off_sources != 0:
+                return False, f"off_topic sources={off_sources} (expected 0)", r_off.text
+
+            return True, f"health=200, on_topic={on_sources}, off_topic={off_sources}", ""
+        finally:
+            ast.ai.gemini_key, ast.ai.groq_key, ast.ai.openrouter_key = orig_keys
+    except Exception as exc:
+        return False, "exception", str(exc)
+
+
+def step_eval():
+    proc = subprocess.run(
+        [sys.executable, "eval/run_ir_eval.py"],
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    out = (proc.stdout + "\n" + proc.stderr).strip()
+    mrr_line = next((l.strip() for l in out.splitlines() if l.strip().startswith("ALL ")), "eval complete")
+    return proc.returncode == 0, mrr_line, out
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Compact verification CLI for llm_uum")
+    parser.add_argument("--eval", action="store_true", help="Also run the 36-query IR evaluation benchmark")
+    parser.add_argument("--verbose", action="store_true", help="Show full command output")
+    args = parser.parse_args()
+
+    steps = [
+        ("lint", step_lint),
+        ("types", step_types),
+        ("boundaries", step_boundaries),
+        ("pytest", step_pytest),
+        ("smoke", step_smoke),
+    ]
+    if args.eval:
+        steps.append(("ir-eval", step_eval))
+
+    t_start = time.time()
+    passed = 0
+    for name, fn in steps:
+        ok, _ = run_step(name, fn, verbose=args.verbose)
+        if not ok:
+            print(f"FAIL: stopped at '{name}' ({passed}/{len(steps)} passed)")
+            sys.exit(1)
+        passed += 1
+
+    total_time = time.time() - t_start
+    print(f"OK: {passed}/{len(steps)} checks passed ({total_time:.1f}s)")
+
+
+if __name__ == "__main__":
+    main()
+PY

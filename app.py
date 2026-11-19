@@ -9,11 +9,11 @@ Universiti Utara Malaysia (UUM)
 
 import os
 import sys
-import sqlite3
 import pandas as pd
 import streamlit as st
 
 from src.ai_provider import AIProvider, load_env, find_root_dir, is_english_query
+from src.db import get_sqlite_path, load_catalog_tables
 from src.search import UUMAssistant
 from src.tracker_sorter import main as run_sorter
 from src.ingestion import run_ingestion
@@ -78,45 +78,15 @@ st.markdown("""
 # -----------------------------------------------------------------------------
 @st.cache_data(ttl=60)
 def load_catalog_data():
-    """Load circulars, college docs and forms tables from SQLite."""
-    if not os.path.exists(SQLITE_DB):
-        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), {}
-    
-    con = sqlite3.connect(SQLITE_DB, timeout=60.0)
-    try:
-        df_circ = pd.read_sql_query("SELECT * FROM circulars ORDER BY department, status, year DESC;", con)
-        df_forms = pd.read_sql_query("SELECT * FROM required_documents_forms ORDER BY department, form_code;", con)
-        
-        try:
-            df_college_docs = pd.read_sql_query("SELECT * FROM college_documents ORDER BY college, school, academic_session DESC;", con)
-        except Exception:
-            df_college_docs = pd.DataFrame()
-
-        try:
-            df_college_forms = pd.read_sql_query("SELECT * FROM college_forms ORDER BY college, school, form_code;", con)
-        except Exception:
-            df_college_forms = pd.DataFrame()
-
-        cur = con.cursor()
-        cur.execute("SELECT count(*) FROM document_chunks;")
-        total_chunks = cur.fetchone()[0]
-        cur.execute("SELECT count(*) FROM circulars WHERE status = 'Active';")
-        active_circ = cur.fetchone()[0]
-        cur.execute("SELECT count(*) FROM circulars WHERE status = 'Superseded';")
-        superseded_circ = cur.fetchone()[0]
-        
-        stats = {
-            "total_circulars": len(df_circ),
-            "active_circulars": active_circ,
-            "superseded_circulars": superseded_circ,
-            "total_forms": len(df_forms),
-            "total_college_docs": len(df_college_docs),
-            "total_college_forms": len(df_college_forms),
-            "total_chunks": total_chunks
-        }
-        return df_circ, df_forms, df_college_docs, df_college_forms, stats
-    finally:
-        con.close()
+    """Load circulars, college docs and forms tables from SQLite via src.db."""
+    circ_rows, form_rows, college_doc_rows, college_form_rows, stats = load_catalog_tables(SQLITE_DB)
+    return (
+        pd.DataFrame(circ_rows),
+        pd.DataFrame(form_rows),
+        pd.DataFrame(college_doc_rows),
+        pd.DataFrame(college_form_rows),
+        stats,
+    )
 
 # -----------------------------------------------------------------------------
 # Sidebar: System Health, Metrics & Supervisor Demo Benchmarks

@@ -10,8 +10,8 @@ Supports:
 import os
 import re
 import time
-import json
 import logging
+from typing import Any
 import requests
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s: %(message)s")
@@ -31,7 +31,7 @@ def load_env(env_path=None):
     if env_path is None:
         root_dir = find_root_dir()
         env_path = os.path.join(root_dir, ".env")
-    
+
     if os.path.exists(env_path):
         with open(env_path, "r", encoding="utf-8") as f:
             for line in f:
@@ -48,8 +48,8 @@ load_env()
 def is_english_query(text):
     """Detect if query is primarily in English."""
     common_en = {
-        "what", "how", "when", "where", "who", "which", "can", "is", "are", 
-        "the", "for", "and", "requirement", "requirements", "claim", "form", 
+        "what", "how", "when", "where", "who", "which", "can", "is", "are",
+        "the", "for", "and", "requirement", "requirements", "claim", "form",
         "rules", "procedure", "rate", "speaker", "external", "appoint", "appointment",
         "assistant", "research", "grant", "allowance", "process", "apply", "eligible"
     }
@@ -73,7 +73,7 @@ class AIProvider:
             for model in ["gemini-embedding-001", "text-embedding-004"]:
                 try:
                     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:embedContent?key={self.gemini_key}"
-                    payload = {
+                    payload: dict[str, Any] = {
                         "model": f"models/{model}",
                         "outputDimensionality": 768,
                         "content": {"parts": [{"text": text[:2048]}]}
@@ -112,7 +112,7 @@ class AIProvider:
                     "content": {"parts": [{"text": t[:2048] if t.strip() else "UUM Pekeliling"}]}
                 })
 
-            payload = {"requests": batch_reqs}
+            payload: dict[str, Any] = {"requests": batch_reqs}
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:batchEmbedContents?key={self.gemini_key}"
 
             max_retries = 4
@@ -261,10 +261,10 @@ class AIProvider:
         for model in models:
             try:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={self.gemini_key}"
-                gen_config = {"temperature": 0.2, "maxOutputTokens": 8192}
+                gen_config: dict[str, Any] = {"temperature": 0.2, "maxOutputTokens": 8192}
                 if "2.5" in model:
                     gen_config["thinkingConfig"] = {"thinkingBudget": 0}
-                payload = {
+                payload: dict[str, Any] = {
                     "contents": [{"parts": [{"text": prompt}]}],
                     "generationConfig": gen_config
                 }
@@ -290,7 +290,7 @@ class AIProvider:
         try:
             url = "https://api.groq.com/openai/v1/chat/completions"
             headers = {"Authorization": f"Bearer {self.groq_key}", "Content-Type": "application/json"}
-            payload = {
+            payload: dict[str, Any] = {
                 "model": "llama-3.3-70b-versatile",
                 "messages": [
                     {"role": "system", "content": system_prompt},
@@ -313,7 +313,7 @@ class AIProvider:
         try:
             url = "https://openrouter.ai/api/v1/chat/completions"
             headers = {"Authorization": f"Bearer {self.openrouter_key}", "Content-Type": "application/json"}
-            payload = {
+            payload: dict[str, Any] = {
                 "model": "google/gemini-2.0-flash-exp:free",
                 "messages": [
                     {"role": "system", "content": system_prompt},

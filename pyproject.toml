@@ -1,0 +1,22 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 160
+exclude = ["venv", ".venv", "__pycache__", ".git", "data", "circular_forms"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "BLE001", "S110"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"eval/run_ir_eval.py" = ["E402"]
+"src/ai_provider.py" = ["BLE001"]
+"src/ingestion.py" = ["BLE001"]
+"src/college_ingestion.py" = ["BLE001"]
+"src/db.py" = ["BLE001"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = true
+no_implicit_optional = true

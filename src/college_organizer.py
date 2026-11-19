@@ -342,7 +342,7 @@ def render_notes_markdown(notes):
     ]
     for rel_cd, text in notes:
         folder = os.path.dirname(rel_cd)
-        clean_txt = " / ".join(l.strip() for l in text.splitlines() if l.strip()) or "*(empty note)*"
+        clean_txt = " / ".join(line.strip() for line in text.splitlines() if line.strip()) or "*(empty note)*"
         clean_txt = clean_txt.replace("|", "\\|")
         lines.append(f"| `{folder}` | {clean_txt} |")
     lines.append("")
@@ -357,7 +357,7 @@ def execute_plan(plan):
         notes_out = os.path.join(COLLEGE_DIR, NOTES_FILENAME)
         with open(notes_out, "w", encoding="utf-8") as f:
             f.write(render_notes_markdown(plan["notes"]))
-        for rel_cd, text in plan["notes"]:
+        for rel_cd, _text in plan["notes"]:
             src_ps = os.path.join(COLLEGE_DIR, rel_cd)
             if os.path.exists(src_ps):
                 os.remove(src_ps)
@@ -433,7 +433,7 @@ def execute_plan(plan):
 
     # 6. Prune all empty directories bottom-up inside College_documents
     pruned_dirs = 0
-    for root, dirs, files in os.walk(COLLEGE_DIR, topdown=False):
+    for root, _dirs, _files in os.walk(COLLEGE_DIR, topdown=False):
         if root == COLLEGE_DIR:
             continue
         if not os.listdir(root):

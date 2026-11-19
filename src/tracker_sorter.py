@@ -9,7 +9,6 @@ Usage:
 """
 
 import os
-import sys
 import re
 import json
 import zipfile
@@ -17,16 +16,12 @@ import hashlib
 import tempfile
 import subprocess
 import argparse
+import logging
 import xml.etree.ElementTree as ET
 import xml.sax.saxutils
+from src.ai_provider import find_root_dir
 
-def find_root_dir():
-    curr = os.path.dirname(os.path.abspath(__file__))
-    while curr and curr != os.path.dirname(curr):
-        if os.path.exists(os.path.join(curr, "circular_forms")) or os.path.exists(os.path.join(curr, ".git")):
-            return curr
-        curr = os.path.dirname(curr)
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+logger = logging.getLogger("TrackerSorter")
 
 BASE_DIR = find_root_dir()
 CIRCULAR_FORMS_DIR = os.path.join(BASE_DIR, "circular_forms")
@@ -553,25 +548,25 @@ def extract_text_from_pdf(filepath, use_ocr=True):
     """Extract text from PDF using pdftotext, fallback to pdfimages + tesseract for scanned documents."""
     text = ""
     try:
-        res = subprocess.run(["pdftotext", "-f", "1", "-l", "3", filepath, "-"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        res = subprocess.run(["pdftotext", "-f", "1", "-l", "3", filepath, "-"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20)
         text = res.stdout.decode("utf-8", errors="ignore").strip()
-    except Exception:
-        pass
+    except (subprocess.SubprocessError, OSError) as exc:
+        logger.debug(f"pdftotext failed on {filepath}: {exc}")
 
     if len(text) < 50 and use_ocr:
         try:
             with tempfile.TemporaryDirectory() as tmpdir:
                 img_prefix = os.path.join(tmpdir, "p1")
-                subprocess.run(["pdfimages", "-png", "-f", "1", "-l", "1", filepath, img_prefix], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                subprocess.run(["pdfimages", "-png", "-f", "1", "-l", "1", filepath, img_prefix], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20)
                 imgs = [os.path.join(tmpdir, f) for f in os.listdir(tmpdir) if f.endswith(".png")]
                 if imgs:
                     ocr_out = os.path.join(tmpdir, "ocr")
-                    subprocess.run(["tesseract", imgs[0], ocr_out], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    subprocess.run(["tesseract", imgs[0], ocr_out], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
                     if os.path.exists(ocr_out + ".txt"):
                         with open(ocr_out + ".txt", "r", encoding="utf-8", errors="ignore") as f:
                             text = f.read().strip()
-        except Exception:
-            pass
+        except (subprocess.SubprocessError, OSError) as exc:
+            logger.debug(f"PDF OCR failed on {filepath}: {exc}")
 
     return text
 
@@ -587,7 +582,8 @@ def extract_text_from_docx(filepath):
             if t.strip():
                 texts.append(t.strip())
         return "\n".join(texts)
-    except Exception:
+    except (zipfile.BadZipFile, KeyError, ET.ParseError, OSError) as exc:
+        logger.debug(f"DOCX extraction failed on {filepath}: {exc}")
         return ""
 
 def extract_text_from_doc(filepath):
@@ -597,7 +593,8 @@ def extract_text_from_doc(filepath):
             data = f.read()
         words = re.findall(rb"[\x20-\x7E]{4,}", data)
         return "\n".join(w.decode("latin1", errors="ignore").strip() for w in words if len(w.strip()) > 3)
-    except Exception:
+    except OSError as exc:
+        logger.debug(f"Legacy DOC/XLS extraction failed on {filepath}: {exc}")
         return ""
 
 def extract_text_from_xlsx(filepath):
@@ -612,8 +609,8 @@ def extract_text_from_xlsx(filepath):
                     if t.strip():
                         texts.append(t.strip())
                 return "\n".join(texts)
-    except Exception:
-        pass
+    except (zipfile.BadZipFile, KeyError, ET.ParseError, OSError) as exc:
+        logger.debug(f"XLSX extraction failed on {filepath}: {exc}")
     return ""
 
 def clean_title_text(t):
@@ -705,10 +702,10 @@ def parse_circular_metadata(filename, filepath, raw_text, dept_key):
 
     # 3. Extract Title
     title = ""
-    lines = [l.strip() for l in raw_text.split("\n") if l.strip()]
+    lines = [line.strip() for line in raw_text.split("\n") if line.strip()]
     for i, line in enumerate(lines[:35]):
         if re.search(r"(Dato\'|Prof\.|Tuan\/Puan|Dato\/Tuan\/Puan)", line, re.IGNORECASE):
-            sub_lines = [l for l in lines[i+1:i+5] if not l.startswith("Dengan ") and not l.startswith("Merujuk ") and len(l) > 3]
+            sub_lines = [sub for sub in lines[i+1:i+5] if not sub.startswith("Dengan ") and not sub.startswith("Merujuk ") and len(sub) > 3]
             if sub_lines:
                 title = " ".join(sub_lines[:2])
             break
@@ -956,8 +953,8 @@ class ExcelWriter:
             try:
                 import shutil
                 shutil.copy2(out_path, backup_path)
-            except Exception:
-                pass
+            except OSError as exc:
+                logger.warning(f"Failed to write backup {backup_path}: {exc}")
 
         with zipfile.ZipFile(out_path, "w", compression=zipfile.ZIP_DEFLATED) as z:
             z.writestr("[Content_Types].xml", content_types)
@@ -976,7 +973,8 @@ def process_all_documents(use_ocr=True, force_ocr=False):
         try:
             with open(CACHE_FILE, "r") as f:
                 cache = json.load(f)
-        except Exception:
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning(f"Failed to load metadata cache {CACHE_FILE}: {exc}")
             cache = {}
 
     circulars = []
@@ -1050,8 +1048,8 @@ def process_all_documents(use_ocr=True, force_ocr=False):
     try:
         with open(CACHE_FILE, "w") as f:
             json.dump(cache, f, indent=2)
-    except Exception:
-        pass
+    except OSError as exc:
+        logger.warning(f"Failed to save metadata cache {CACHE_FILE}: {exc}")
 
     # Sort Circulars: Department ASC, Status (Active first), Category ASC, Date/Year DESC
     def circ_sort_key(c):
@@ -1079,27 +1077,20 @@ def process_all_documents(use_ocr=True, force_ocr=False):
 
     return circulars, forms, duplicates
 
-def main():
-    parser = argparse.ArgumentParser(description="UUM Circular & Form Master Tracker Auto-Sorter")
-    parser.add_argument("--clean", action="store_true", default=True, help="Clean Windows artifact files before processing")
-    parser.add_argument("--no-ocr", action="store_true", help="Disable OCR fallback for scanned PDFs")
-    parser.add_argument("--force-ocr", action="store_true", help="Force re-extraction ignoring cache")
-    parser.add_argument("--output", default=DEFAULT_EXCEL_OUT, help="Path for output Excel tracker")
-    parser.add_argument("--export-json", help="Optional path to export raw metadata as JSON")
-    args = parser.parse_args()
-
+def run_sorter(clean=True, no_ocr=False, force_ocr=False, output=DEFAULT_EXCEL_OUT, export_json=None):
+    """Run the circular & form auto-sorter programmatically without mutating sys.argv."""
     print("=" * 70)
     print("  UUM CIRCULAR & PROJECT DOCUMENT TRACKER AUTOMATION")
     print("=" * 70)
 
-    if args.clean:
+    if clean:
         cleaned_count = clean_artifacts(BASE_DIR)
         if cleaned_count > 0:
             print(f"[+] Cleaned {cleaned_count} Windows artifact (:Zone.Identifier / desktop.ini) files.")
 
-    circulars, forms, duplicates = process_all_documents(use_ocr=not args.no_ocr, force_ocr=args.force_ocr)
+    circulars, forms, duplicates = process_all_documents(use_ocr=not no_ocr, force_ocr=force_ocr)
 
-    print(f"\n[+] Processing Summary:")
+    print("\n[+] Processing Summary:")
     print(f"    - Unique Circulars: {len(circulars)}")
     print(f"    - Unique Forms:     {len(forms)}")
     print(f"    - Duplicates skipped: {len(duplicates)}")
@@ -1162,9 +1153,9 @@ def main():
         for f in forms
     ]
 
-    print(f"\n[*] Generating Excel workbook with standardized sheets ('circulars' & 'forms')...")
+    print("\n[*] Generating Excel workbook with standardized sheets ('circulars' & 'forms')...")
     ExcelWriter.write_workbook(
-        args.output,
+        output,
         "circulars",
         circ_headers,
         circ_rows,
@@ -1172,13 +1163,13 @@ def main():
         form_headers,
         form_rows,
     )
-    print(f"[✓] Successfully generated: {args.output}")
+    print(f"[✓] Successfully generated: {output}")
 
-    if args.export_json:
+    if export_json:
         export_data = {"circulars": circulars, "forms": forms}
-        with open(args.export_json, "w") as f:
+        with open(export_json, "w") as f:
             json.dump(export_data, f, indent=2)
-        print(f"[✓] Exported metadata JSON to: {args.export_json}")
+        print(f"[✓] Exported metadata JSON to: {export_json}")
 
     print("\n" + "=" * 70)
     print("  STATUS OVERVIEW:")
@@ -1187,6 +1178,23 @@ def main():
     print(f"  • Circulars: {len(circulars)} total ({active_circs} Active, {superseded_circs} Superseded)")
     print(f"  • Forms:     {len(forms)} total mapped to project activity types")
     print("=" * 70)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="UUM Circular & Form Master Tracker Auto-Sorter")
+    parser.add_argument("--clean", action="store_true", default=True, help="Clean Windows artifact files before processing")
+    parser.add_argument("--no-ocr", action="store_true", help="Disable OCR fallback for scanned PDFs")
+    parser.add_argument("--force-ocr", action="store_true", help="Force re-extraction ignoring cache")
+    parser.add_argument("--output", default=DEFAULT_EXCEL_OUT, help="Path for output Excel tracker")
+    parser.add_argument("--export-json", help="Optional path to export raw metadata as JSON")
+    args = parser.parse_args()
+    run_sorter(
+        clean=args.clean,
+        no_ocr=args.no_ocr,
+        force_ocr=args.force_ocr,
+        output=args.output,
+        export_json=args.export_json,
+    )
 
 if __name__ == "__main__":
     main()

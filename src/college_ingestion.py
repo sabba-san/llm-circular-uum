@@ -21,7 +21,7 @@ import xml.etree.ElementTree as ET
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from src.ai_provider import AIProvider, load_env, find_root_dir
-from src.db import setup_sqlite, setup_postgresql
+from src.db import setup_sqlite, rebuild_sqlite_fts
 from src.college_extractor import extract_document_chunks
 
 load_env()
@@ -276,8 +276,8 @@ def run_college_ingestion(force_reembed=False):
             for row in cur.fetchall():
                 try:
                     existing_embeddings[row[0]] = json.loads(row[1])
-                except Exception:
-                    pass
+                except (ValueError, TypeError) as exc:
+                    logger.debug(f"Skipping invalid cached embedding for {row[0]}: {exc}")
 
     new_chunks = [ch for ch in chunks_to_insert if ch["chunk_id"] not in existing_embeddings]
     if new_chunks:
@@ -345,34 +345,7 @@ def run_college_ingestion(force_reembed=False):
     # 6. Rebuild Full-Text Search FTS5 Virtual Table
     if sqlite_con:
         print("[*] Rebuilding SQLite FTS5 Full-Text Search index (Circulars + College Docs)...")
-        sqlite_con.execute("DROP TABLE IF EXISTS chunks_fts;")
-        sqlite_con.execute("""
-            CREATE VIRTUAL TABLE chunks_fts USING fts5(
-                chunk_id UNINDEXED,
-                circular_ref_no,
-                department,
-                section_heading,
-                chunk_text,
-                college,
-                school
-            );
-        """)
-        sqlite_con.execute("""
-            INSERT INTO chunks_fts (chunk_id, circular_ref_no, department, section_heading, chunk_text, college, school)
-            SELECT d.chunk_id,
-                   COALESCE(d.circular_ref_no, '') || ' ' || COALESCE(c.title, cd.title, rf.form_title, cf.form_title, ''),
-                   d.department,
-                   d.section_heading,
-                   d.chunk_text || ' ' || COALESCE(d.required_forms, '') || ' ' || COALESCE(d.academic_session, ''),
-                   COALESCE(d.college, ''),
-                   COALESCE(d.school, '')
-            FROM document_chunks d
-            LEFT JOIN circulars c ON d.circular_id = c.id
-            LEFT JOIN college_documents cd ON d.circular_id = cd.id
-            LEFT JOIN required_documents_forms rf ON d.circular_id = rf.id
-            LEFT JOIN college_forms cf ON d.circular_id = cf.id;
-        """)
-        sqlite_con.commit()
+        rebuild_sqlite_fts(sqlite_con)
         sqlite_con.close()
 
     if pg_con:
