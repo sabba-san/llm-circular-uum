@@ -14,6 +14,7 @@ import os
 import mimetypes
 from urllib.parse import quote
 from starlette.applications import Starlette
+from starlette.concurrency import run_in_threadpool
 from starlette.responses import JSONResponse, FileResponse, HTMLResponse
 from starlette.routing import Route, Mount
 from starlette.staticfiles import StaticFiles
@@ -66,10 +67,10 @@ async def homepage(request):
 
 async def api_catalog(request):
     """Return knowledge base statistics and all cataloged documents & forms."""
-    ast = get_assistant()
+    ast = await run_in_threadpool(get_assistant)
     items = list(ast.doc_registry.values())
 
-    health = get_kb_health_stats(SQLITE_DB)
+    health = await run_in_threadpool(get_kb_health_stats, SQLITE_DB)
     total_chunks = health.get("chunks", 0)
     active_circulars = health.get("documents", {}).get("active_circulars", 0)
 
@@ -106,8 +107,15 @@ async def api_ask(request):
     filter_active = bool(body.get("filter_active", True))
     previous_query = str(body.get("previous_query", "")).strip()[:500]
 
-    ast = get_assistant()
-    res = ast.ask(query=query, filter_active=filter_active, scope=scope, top_k=6, previous_query=previous_query)
+    ast = await run_in_threadpool(get_assistant)
+    res = await run_in_threadpool(
+        ast.ask,
+        query=query,
+        filter_active=filter_active,
+        scope=scope,
+        top_k=6,
+        previous_query=previous_query,
+    )
     return JSONResponse(res)
 
 
@@ -117,8 +125,8 @@ async def api_doc_preview(request):
     if not doc_id or len(doc_id) > 120:
         return JSONResponse({"error": "Invalid document ID."}, status_code=400)
 
-    ast = get_assistant()
-    preview = ast.get_document_preview(doc_id)
+    ast = await run_in_threadpool(get_assistant)
+    preview = await run_in_threadpool(ast.get_document_preview, doc_id)
     if not preview:
         return JSONResponse({"error": "Document not found in registry."}, status_code=404)
 

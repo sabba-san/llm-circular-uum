@@ -108,7 +108,10 @@ const rightPaneViewerPopulated = extract((state) => {
   if (!rightPane || !panelViewer || !viewerBody) return false;
   const isExpanded = !rightPane.classList.contains("collapsed");
   const isViewerVisible = !panelViewer.classList.contains("hidden");
-  const hasTitle = viewerTitle.length > 0 && viewerTitle !== "Select a Reference Card";
+  const hasTitle =
+    viewerTitle.length > 0 &&
+    viewerTitle !== "Select a Reference Card" &&
+    viewerTitle !== "Select a document to inspect";
   const hasBodyContent = viewerBody.childElementCount > 0;
 
   return isExpanded && isViewerVisible && hasTitle && hasBodyContent;

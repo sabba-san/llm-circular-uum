@@ -8,58 +8,58 @@
   "baseline_summary": {
     "ALL": {
       "count": 36,
-      "p3": 0.4167,
-      "r3": 0.8333,
-      "mrr3": 0.9259,
-      "ndcg3": 0.8571,
-      "p5": 0.2556,
-      "r5": 0.8611,
-      "mrr5": 0.9315,
-      "ndcg5": 0.8678
+      "p3": 0.3889,
+      "r3": 0.8056,
+      "mrr3": 0.8981,
+      "ndcg3": 0.8343,
+      "p5": 0.2444,
+      "r5": 0.8472,
+      "mrr5": 0.9106,
+      "ndcg5": 0.855
     },
     "en": {
       "count": 12,
-      "p3": 0.4722,
-      "r3": 0.8333,
-      "mrr3": 1.0,
-      "ndcg3": 0.8473,
-      "p5": 0.2833,
-      "r5": 0.8333,
-      "mrr5": 1.0,
-      "ndcg5": 0.8473
+      "p3": 0.4167,
+      "r3": 0.75,
+      "mrr3": 0.9167,
+      "ndcg3": 0.8388,
+      "p5": 0.25,
+      "r5": 0.75,
+      "mrr5": 0.9167,
+      "ndcg5": 0.8388
     },
     "bm": {
       "count": 12,
-      "p3": 0.4444,
-      "r3": 0.9583,
+      "p3": 0.4166,
+      "r3": 0.9167,
       "mrr3": 1.0,
-      "ndcg3": 0.9855,
-      "p5": 0.2667,
-      "r5": 0.9583,
+      "ndcg3": 0.9184,
+      "p5": 0.25,
+      "r5": 0.9167,
       "mrr5": 1.0,
-      "ndcg5": 0.9855
+      "ndcg5": 0.9184
     },
     "cross_en_to_bm": {
       "count": 6,
-      "p3": 0.2777,
-      "r3": 0.5833,
-      "mrr3": 0.7222,
-      "ndcg3": 0.6776,
+      "p3": 0.2222,
+      "r3": 0.5,
+      "mrr3": 0.6667,
+      "ndcg3": 0.6087,
       "p5": 0.2,
       "r5": 0.75,
-      "mrr5": 0.7555,
-      "ndcg5": 0.7421
+      "mrr5": 0.7417,
+      "ndcg5": 0.7325
     },
     "cross_bm_to_en": {
       "count": 6,
-      "p3": 0.3889,
-      "r3": 0.8333,
-      "mrr3": 0.8333,
-      "ndcg3": 0.7994,
-      "p5": 0.2333,
-      "r5": 0.8333,
-      "mrr5": 0.8333,
-      "ndcg5": 0.7994
+      "p3": 0.4444,
+      "r3": 1.0,
+      "mrr3": 0.8889,
+      "ndcg3": 0.8828,
+      "p5": 0.2667,
+      "r5": 1.0,
+      "mrr5": 0.8889,
+      "ndcg5": 0.8828
     }
   },
   "ablation_sweep": [
@@ -68,14 +68,14 @@
       "keyword_weight": 1.0,
       "ALL": {
         "count": 36,
-        "p3": 0.4074,
+        "p3": 0.3981,
         "r3": 0.8056,
-        "mrr3": 0.875,
-        "ndcg3": 0.8229,
-        "p5": 0.2611,
-        "r5": 0.8611,
-        "mrr5": 0.8875,
-        "ndcg5": 0.847
+        "mrr3": 0.8704,
+        "ndcg3": 0.8051,
+        "p5": 0.25,
+        "r5": 0.8472,
+        "mrr5": 0.8829,
+        "ndcg5": 0.826
       }
     },
     {
@@ -83,14 +83,14 @@
       "keyword_weight": 0.6,
       "ALL": {
         "count": 36,
-        "p3": 0.4167,
-        "r3": 0.8333,
-        "mrr3": 0.9259,
-        "ndcg3": 0.8571,
-        "p5": 0.2556,
-        "r5": 0.8611,
-        "mrr5": 0.9315,
-        "ndcg5": 0.8678
+        "p3": 0.3889,
+        "r3": 0.8056,
+        "mrr3": 0.8981,
+        "ndcg3": 0.8343,
+        "p5": 0.2444,
+        "r5": 0.8472,
+        "mrr5": 0.9106,
+        "ndcg5": 0.855
       }
     },
     {
@@ -98,14 +98,14 @@
       "keyword_weight": 0.5,
       "ALL": {
         "count": 36,
-        "p3": 0.4259,
-        "r3": 0.8611,
-        "mrr3": 0.9352,
-        "ndcg3": 0.871,
-        "p5": 0.2611,
-        "r5": 0.875,
-        "mrr5": 0.9352,
-        "ndcg5": 0.8739
+        "p3": 0.3981,
+        "r3": 0.8194,
+        "mrr3": 0.8704,
+        "ndcg3": 0.8204,
+        "p5": 0.25,
+        "r5": 0.8472,
+        "mrr5": 0.8773,
+        "ndcg5": 0.8336
       }
     },
     {
@@ -113,14 +113,14 @@
       "keyword_weight": 0.4,
       "ALL": {
         "count": 36,
-        "p3": 0.4259,
-        "r3": 0.8611,
-        "mrr3": 0.9213,
-        "ndcg3": 0.8585,
-        "p5": 0.2667,
-        "r5": 0.8889,
-        "mrr5": 0.9213,
-        "ndcg5": 0.8648
+        "p3": 0.3796,
+        "r3": 0.7917,
+        "mrr3": 0.8704,
+        "ndcg3": 0.8126,
+        "p5": 0.2444,
+        "r5": 0.8333,
+        "mrr5": 0.8773,
+        "ndcg5": 0.829
       }
     },
     {
@@ -128,14 +128,14 @@
       "keyword_weight": 0.3,
       "ALL": {
         "count": 36,
-        "p3": 0.4167,
-        "r3": 0.8333,
-        "mrr3": 0.9074,
-        "ndcg3": 0.839,
-        "p5": 0.25,
+        "p3": 0.3796,
+        "r3": 0.7917,
+        "mrr3": 0.8704,
+        "ndcg3": 0.8126,
+        "p5": 0.2444,
         "r5": 0.8333,
-        "mrr5": 0.9074,
-        "ndcg5": 0.839
+        "mrr5": 0.8773,
+        "ndcg5": 0.8287
       }
     },
     {
@@ -143,32 +143,33 @@
       "keyword_weight": 0.0,
       "ALL": {
         "count": 36,
-        "p3": 0.2963,
-        "r3": 0.6389,
-        "mrr3": 0.6991,
-        "ndcg3": 0.6199,
-        "p5": 0.2111,
-        "r5": 0.7361,
-        "mrr5": 0.7241,
-        "ndcg5": 0.6642
+        "p3": 0.3055,
+        "r3": 0.625,
+        "mrr3": 0.6481,
+        "ndcg3": 0.6032,
+        "p5": 0.2056,
+        "r5": 0.6944,
+        "mrr5": 0.662,
+        "ndcg5": 0.6287
       }
     }
   ],
   "lowest_3_queries": [
     {
-      "id": "CROSS-11",
-      "direction": "cross_bm_to_en",
-      "scope": "CAS",
-      "query": "Apakah struktur kursus Sarjana Muda Teknologi Maklumat dengan Kepujian di SOC sesi 2026/2027?",
+      "id": "EN-01",
+      "direction": "en",
+      "scope": "RMC",
+      "query": "RMC 008 graduate research assistant GRA appointment checklist and allowance",
       "relevant_docs": {
-        "CDOC-CAS-028": 2
+        "CIRC-RMC-156": 2,
+        "CIRC-RMC-157": 1
       },
       "retrieved_top5": [
-        "CDOC-CAS-015",
-        "CDOC-CAS-011",
-        "CDOC-CAS-016",
-        "CDOC-CAS-001",
-        "CDOC-CAS-010"
+        "CIRC-RMC-167",
+        "CIRC-RMC-160",
+        "CIRC-RMC-170",
+        "CIRC-RMC-162",
+        "CIRC-RMC-169"
       ],
       "metrics": {
         "p3": 0.0,
@@ -217,21 +218,21 @@
         "CIRC-RMC-164": 1
       },
       "retrieved_top5": [
-        "FORM-RMC-068",
         "FORM-RMC-073",
-        "CIRC-RMC-165",
+        "FORM-RMC-068",
         "FORM-RMC-069",
+        "CIRC-RMC-165",
         "CIRC-RMC-167"
       ],
       "metrics": {
-        "p3": 0.3333,
-        "r3": 0.5,
-        "mrr3": 0.3333,
-        "ndcg3": 0.4131,
+        "p3": 0.0,
+        "r3": 0.0,
+        "mrr3": 0.0,
+        "ndcg3": 0.0,
         "p5": 0.2,
         "r5": 0.5,
-        "mrr5": 0.3333,
-        "ndcg5": 0.4131
+        "mrr5": 0.25,
+        "ndcg5": 0.3558
       }
     }
   ],
@@ -246,21 +247,21 @@
         "CIRC-RMC-157": 1
       },
       "retrieved_top5": [
-        "CIRC-RMC-157",
-        "CIRC-RMC-160",
         "CIRC-RMC-167",
+        "CIRC-RMC-160",
         "CIRC-RMC-170",
-        "CIRC-RMC-162"
+        "CIRC-RMC-162",
+        "CIRC-RMC-169"
       ],
       "metrics": {
-        "p3": 0.3333,
-        "r3": 0.5,
-        "mrr3": 1.0,
-        "ndcg3": 0.2754,
-        "p5": 0.2,
-        "r5": 0.5,
-        "mrr5": 1.0,
-        "ndcg5": 0.2754
+        "p3": 0.0,
+        "r3": 0.0,
+        "mrr3": 0.0,
+        "ndcg3": 0.0,
+        "p5": 0.0,
+        "r5": 0.0,
+        "mrr5": 0.0,
+        "ndcg5": 0.0
       }
     },
     {
@@ -274,17 +275,18 @@
       },
       "retrieved_top5": [
         "CIRC-RMC-168",
-        "CIRC-RMC-150"
+        "FORM-RMC-073",
+        "FORM-RMC-068"
       ],
       "metrics": {
-        "p3": 0.6667,
-        "r3": 1.0,
+        "p3": 0.3333,
+        "r3": 0.5,
         "mrr3": 1.0,
-        "ndcg3": 1.0,
-        "p5": 0.4,
-        "r5": 1.0,
+        "ndcg3": 0.8262,
+        "p5": 0.2,
+        "r5": 0.5,
         "mrr5": 1.0,
-        "ndcg5": 1.0
+        "ndcg5": 0.8262
       }
     },
     {
@@ -297,21 +299,21 @@
         "CDOC-CAS-015": 1
       },
       "retrieved_top5": [
-        "CDOC-CAS-015",
-        "CDOC-CAS-016",
-        "CDOC-CAS-014",
-        "CDOC-CAS-025",
-        "CDOC-CAS-018"
+        "CDOC-CAS-028",
+        "CDOC-CAS-030",
+        "CDOC-CAS-029",
+        "CDOC-CAS-005",
+        "CDOC-CAS-070"
       ],
       "metrics": {
         "p3": 0.3333,
         "r3": 0.5,
         "mrr3": 1.0,
-        "ndcg3": 0.2754,
+        "ndcg3": 0.8262,
         "p5": 0.2,
         "r5": 0.5,
         "mrr5": 1.0,
-        "ndcg5": 0.2754
+        "ndcg5": 0.8262
       }
     },
     {
@@ -323,7 +325,8 @@
         "CDOC-UNI-005": 2
       },
       "retrieved_top5": [
-        "CDOC-UNI-005"
+        "CDOC-UNI-005",
+        "CDOC-UNI-004"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -346,8 +349,8 @@
         "CDOC-UNI-002": 1
       },
       "retrieved_top5": [
-        "CDOC-UNI-001",
         "CDOC-UNI-002",
+        "CDOC-UNI-001",
         "CDOC-UNI-004",
         "CDOC-UNI-003",
         "CDOC-UNI-005"
@@ -356,11 +359,11 @@
         "p3": 0.6667,
         "r3": 1.0,
         "mrr3": 1.0,
-        "ndcg3": 1.0,
+        "ndcg3": 0.7967,
         "p5": 0.4,
         "r5": 1.0,
         "mrr5": 1.0,
-        "ndcg5": 1.0
+        "ndcg5": 0.7967
       }
     },
     {
@@ -402,7 +405,7 @@
         "CIRC-BEN-048",
         "CIRC-BEN-049",
         "CIRC-BEN-010",
-        "CIRC-BEN-014",
+        "CIRC-BEN-012",
         "CIRC-BEN-009"
       ],
       "metrics": {
@@ -428,9 +431,7 @@
       "retrieved_top5": [
         "CDOC-CLG-004",
         "CDOC-CLG-006",
-        "CDOC-CLG-005",
-        "CDOC-CLG-003",
-        "CDOC-CLG-002"
+        "CDOC-CLG-005"
       ],
       "metrics": {
         "p3": 0.6667,
@@ -454,9 +455,9 @@
       "retrieved_top5": [
         "CDOC-COB-001",
         "CDOC-COB-023",
-        "CDOC-COB-072",
         "CDOC-COB-028",
-        "CDOC-COB-022"
+        "CDOC-COB-022",
+        "CDOC-COB-021"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -479,7 +480,11 @@
         "CDOC-CLG-022": 1
       },
       "retrieved_top5": [
-        "CDOC-CLG-026"
+        "CDOC-CLG-026",
+        "CDOC-CLG-024",
+        "CFORM-CLG-002",
+        "CDOC-CLG-017",
+        "CDOC-CLG-020"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -502,9 +507,10 @@
       },
       "retrieved_top5": [
         "CDOC-COB-003",
-        "CDOC-COB-015",
-        "CDOC-COB-001",
-        "CDOC-COB-009"
+        "CDOC-COB-032",
+        "CDOC-COB-030",
+        "CDOC-COB-031",
+        "CDOC-COB-029"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -530,7 +536,8 @@
         "CDOC-CLG-024",
         "CDOC-CLG-025",
         "CDOC-CLG-026",
-        "CFORM-CLG-028"
+        "CFORM-CLG-028",
+        "CDOC-CLG-016"
       ],
       "metrics": {
         "p3": 0.6667,
@@ -607,9 +614,9 @@
       "retrieved_top5": [
         "CIRC-BEN-080",
         "CIRC-BEN-018",
+        "CIRC-BEN-015",
         "CIRC-BEN-021",
-        "CIRC-BEN-009",
-        "CIRC-BEN-020"
+        "CIRC-BEN-009"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -632,7 +639,9 @@
       },
       "retrieved_top5": [
         "CIRC-BEN-012",
-        "CIRC-BEN-009"
+        "CIRC-BEN-009",
+        "CIRC-BEN-018",
+        "FORM-BEN-026"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -655,34 +664,11 @@
         "CIRC-BEN-010": 1
       },
       "retrieved_top5": [
-        "CIRC-BEN-011"
-      ],
-      "metrics": {
-        "p3": 0.3333,
-        "r3": 0.5,
-        "mrr3": 1.0,
-        "ndcg3": 0.8262,
-        "p5": 0.2,
-        "r5": 0.5,
-        "mrr5": 1.0,
-        "ndcg5": 0.8262
-      }
-    },
-    {
-      "id": "BM-06",
-      "direction": "bm",
-      "scope": "RMC",
-      "query": "Apakah panduan kod perbelanjaan vot 21000 perjalanan dan penyelidikan bagi geran penyelidikan?",
-      "relevant_docs": {
-        "CIRC-RMC-167": 2,
-        "CIRC-RMC-165": 1
-      },
-      "retrieved_top5": [
-        "CIRC-RMC-167",
-        "CIRC-RMC-165",
-        "CIRC-RMC-164",
-        "CIRC-RMC-153",
-        "CIRC-RMC-149"
+        "CIRC-BEN-011",
+        "CIRC-BEN-010",
+        "FORM-BEN-025",
+        "CIRC-BEN-009",
+        "CIRC-BEN-022"
       ],
       "metrics": {
         "p3": 0.6667,
@@ -696,6 +682,33 @@
       }
     },
     {
+      "id": "BM-06",
+      "direction": "bm",
+      "scope": "RMC",
+      "query": "Apakah panduan kod perbelanjaan vot 21000 perjalanan dan penyelidikan bagi geran penyelidikan?",
+      "relevant_docs": {
+        "CIRC-RMC-167": 2,
+        "CIRC-RMC-165": 1
+      },
+      "retrieved_top5": [
+        "CIRC-RMC-165",
+        "CIRC-RMC-164",
+        "CIRC-RMC-149",
+        "CIRC-RMC-169",
+        "CIRC-RMC-170"
+      ],
+      "metrics": {
+        "p3": 0.3333,
+        "r3": 0.5,
+        "mrr3": 1.0,
+        "ndcg3": 0.2754,
+        "p5": 0.2,
+        "r5": 0.5,
+        "mrr5": 1.0,
+        "ndcg5": 0.2754
+      }
+    },
+    {
       "id": "BM-07",
       "direction": "bm",
       "scope": "RMC",
@@ -704,7 +717,11 @@
         "CIRC-RMC-152": 2
       },
       "retrieved_top5": [
-        "CIRC-RMC-152"
+        "CIRC-RMC-152",
+        "FORM-RMC-074",
+        "CIRC-RMC-162",
+        "CIRC-RMC-165",
+        "CIRC-RMC-170"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -728,19 +745,20 @@
       },
       "retrieved_top5": [
         "CFORM-UNI-006",
-        "CFORM-UNI-005",
         "CFORM-UNI-004",
+        "CFORM-UNI-005",
+        "CDOC-UNI-005",
         "CFORM-UNI-003"
       ],
       "metrics": {
         "p3": 0.6667,
         "r3": 1.0,
         "mrr3": 1.0,
-        "ndcg3": 1.0,
+        "ndcg3": 0.9197,
         "p5": 0.4,
         "r5": 1.0,
         "mrr5": 1.0,
-        "ndcg5": 1.0
+        "ndcg5": 0.9197
       }
     },
     {
@@ -754,20 +772,20 @@
       },
       "retrieved_top5": [
         "CDOC-CAS-010",
-        "CDOC-CAS-001",
         "CDOC-CAS-011",
-        "CDOC-CAS-007",
-        "CDOC-CAS-015"
+        "CDOC-CAS-025",
+        "CDOC-CAS-016",
+        "CDOC-CAS-022"
       ],
       "metrics": {
-        "p3": 0.6667,
-        "r3": 1.0,
+        "p3": 0.3333,
+        "r3": 0.5,
         "mrr3": 1.0,
-        "ndcg3": 1.0,
-        "p5": 0.4,
-        "r5": 1.0,
+        "ndcg3": 0.8262,
+        "p5": 0.2,
+        "r5": 0.5,
         "mrr5": 1.0,
-        "ndcg5": 1.0
+        "ndcg5": 0.8262
       }
     },
     {
@@ -779,7 +797,11 @@
         "CIRC-BEN-008": 2
       },
       "retrieved_top5": [
-        "CIRC-BEN-008"
+        "CIRC-BEN-008",
+        "CIRC-BEN-012",
+        "CIRC-BEN-018",
+        "CIRC-BEN-021",
+        "CIRC-BEN-010"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -802,10 +824,10 @@
       },
       "retrieved_top5": [
         "CIRC-CIRC-004",
-        "CIRC-CIRC-005",
+        "FORM-FORM-013",
         "CIRC-CIRC-002",
         "CIRC-CIRC-001",
-        "FORM-FORM-013"
+        "CIRC-CIRC-007"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -829,6 +851,8 @@
       "retrieved_top5": [
         "CDOC-CLG-019",
         "CDOC-CLG-020",
+        "CDOC-CLG-002",
+        "CDOC-CLG-001",
         "CDOC-CLG-017"
       ],
       "metrics": {
@@ -855,7 +879,7 @@
         "CIRC-BEN-016",
         "CIRC-BEN-018",
         "CIRC-BEN-012",
-        "CIRC-BEN-014",
+        "CIRC-BEN-009",
         "CIRC-BEN-015"
       ],
       "metrics": {
@@ -881,8 +905,8 @@
         "CIRC-BEN-015",
         "FORM-BEN-051",
         "CIRC-BEN-085",
-        "CIRC-BEN-131",
-        "CIRC-BEN-018"
+        "CIRC-BEN-018",
+        "CIRC-BEN-016"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -905,21 +929,21 @@
         "CIRC-RMC-164": 1
       },
       "retrieved_top5": [
-        "FORM-RMC-068",
         "FORM-RMC-073",
-        "CIRC-RMC-165",
+        "FORM-RMC-068",
         "FORM-RMC-069",
+        "CIRC-RMC-165",
         "CIRC-RMC-167"
       ],
       "metrics": {
-        "p3": 0.3333,
-        "r3": 0.5,
-        "mrr3": 0.3333,
-        "ndcg3": 0.4131,
+        "p3": 0.0,
+        "r3": 0.0,
+        "mrr3": 0.0,
+        "ndcg3": 0.0,
         "p5": 0.2,
         "r5": 0.5,
-        "mrr5": 0.3333,
-        "ndcg5": 0.4131
+        "mrr5": 0.25,
+        "ndcg5": 0.3558
       }
     },
     {
@@ -960,8 +984,8 @@
         "CIRC-CIRC-003",
         "CIRC-CIRC-001",
         "CIRC-CIRC-007",
-        "CIRC-CIRC-002",
-        "FORM-FORM-015"
+        "FORM-FORM-015",
+        "FORM-FORM-016"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -985,10 +1009,10 @@
       },
       "retrieved_top5": [
         "CDOC-CAS-010",
-        "CDOC-CAS-020",
-        "CDOC-CAS-051",
-        "CDOC-CAS-061",
-        "CDOC-CAS-057"
+        "CDOC-CAS-022",
+        "CDOC-CAS-017",
+        "CDOC-CAS-021",
+        "CDOC-CAS-051"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -1011,7 +1035,8 @@
       },
       "retrieved_top5": [
         "CIRC-RMC-168",
-        "CIRC-RMC-150"
+        "FORM-RMC-069",
+        "FORM-RMC-073"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -1036,9 +1061,9 @@
       "retrieved_top5": [
         "CIRC-BEN-048",
         "CIRC-BEN-049",
-        "CIRC-BEN-009",
-        "CIRC-BEN-012",
-        "CIRC-BEN-022"
+        "CIRC-BEN-080",
+        "CIRC-BEN-096",
+        "CIRC-BEN-081"
       ],
       "metrics": {
         "p3": 0.6667,
@@ -1083,10 +1108,9 @@
       },
       "retrieved_top5": [
         "CFORM-UNI-004",
+        "CDOC-UNI-005",
         "CFORM-UNI-005",
-        "CFORM-UNI-006",
-        "CFORM-UNI-003",
-        "CDOC-UNI-005"
+        "CFORM-UNI-006"
       ],
       "metrics": {
         "p3": 0.3333,
@@ -1108,21 +1132,21 @@
         "CDOC-CAS-028": 2
       },
       "retrieved_top5": [
-        "CDOC-CAS-015",
-        "CDOC-CAS-011",
-        "CDOC-CAS-016",
-        "CDOC-CAS-001",
-        "CDOC-CAS-010"
+        "CDOC-CAS-030",
+        "CDOC-CAS-029",
+        "CDOC-CAS-028",
+        "CDOC-CAS-005",
+        "CDOC-CAS-011"
       ],
       "metrics": {
-        "p3": 0.0,
-        "r3": 0.0,
-        "mrr3": 0.0,
-        "ndcg3": 0.0,
-        "p5": 0.0,
-        "r5": 0.0,
-        "mrr5": 0.0,
-        "ndcg5": 0.0
+        "p3": 0.3333,
+        "r3": 1.0,
+        "mrr3": 0.3333,
+        "ndcg3": 0.5,
+        "p5": 0.2,
+        "r5": 1.0,
+        "mrr5": 0.3333,
+        "ndcg5": 0.5
       }
     },
     {

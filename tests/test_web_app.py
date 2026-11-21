@@ -92,3 +92,23 @@ def test_document_preview_and_file_spaces_and_unicode():
         resp = client.get(f"/api/document/{unicode_doc_id}/preview")
         assert resp.status_code == 200
         assert "filename*=UTF-8''" in resp.headers["content-disposition"]
+
+
+def test_ask_response_language_and_clean_fallback(monkeypatch):
+    """/api/ask returns explicit language ('en'|'ms') and never leaks .env / API key instructions."""
+    _disable_llm_keys(monkeypatch)
+    client = TestClient(web_app.app)
+
+    en_resp = client.post("/api/ask", json={"query": "How do I apply for a research grant?", "scope": "All"})
+    assert en_resp.status_code == 200
+    en_data = en_resp.json()
+    assert en_data["language"] == "en"
+    assert "GEMINI_API_KEY" not in en_data["answer"]
+    assert ".env" not in en_data["answer"]
+
+    ms_resp = client.post("/api/ask", json={"query": "Apakah borang pelupusan aset universiti?", "scope": "All"})
+    assert ms_resp.status_code == 200
+    ms_data = ms_resp.json()
+    assert ms_data["language"] == "ms"
+    assert "GEMINI_API_KEY" not in ms_data["answer"]
+    assert ".env" not in ms_data["answer"]

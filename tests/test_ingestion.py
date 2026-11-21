@@ -76,5 +76,15 @@ def test_sqlite_document_chunks_metadata():
             "SELECT count(*) FROM document_chunks WHERE doc_type = 'admin_form'"
         ).fetchone()[0]
         assert admin_form_chunks > 0
+
+        # Ensure zero circular_id collisions (no circular_id may mix multiple circular_ref_no or department values)
+        collided = con.execute(
+            "SELECT count(*) FROM ("
+            "  SELECT circular_id FROM document_chunks "
+            "  GROUP BY circular_id "
+            "  HAVING COUNT(DISTINCT circular_ref_no) > 1 OR COUNT(DISTINCT department) > 1"
+            ")"
+        ).fetchone()[0]
+        assert collided == 0, f"Found {collided} poisoned circular_id entries with mixed document chunks"
     finally:
         con.close()

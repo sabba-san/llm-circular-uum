@@ -11,6 +11,7 @@ import os
 import re
 import time
 import json
+import hashlib
 import sqlite3
 import subprocess
 import zipfile
@@ -295,24 +296,33 @@ def run_ingestion(force_reembed=False):
 
     total_chunks = len(chunks_to_insert)
 
-    # 4. Check existing embeddings for incremental ingestion
+    # 4. Check existing embeddings for incremental ingestion (keyed by sha256(chunk_text.strip()))
+    def _text_hash(text: str) -> str:
+        return hashlib.sha256((text or "").strip().encode("utf-8")).hexdigest()
+
     existing_embeddings = {}
     if not force_reembed:
         if use_postgres:
             with pg_con.cursor() as cur:
-                cur.execute("SELECT chunk_id, embedding FROM document_chunks WHERE embedding IS NOT NULL;")
+                cur.execute("SELECT chunk_text, embedding FROM document_chunks WHERE embedding IS NOT NULL;")
                 for row in cur.fetchall():
-                    existing_embeddings[row[0]] = row[1]
+                    if row[0] and row[1]:
+                        existing_embeddings[_text_hash(row[0])] = row[1]
         else:
             cur = sqlite_con.cursor()
-            cur.execute("SELECT chunk_id, embedding_json FROM document_chunks WHERE length(embedding_json) > 100;")
-            for row in cur.fetchall():
+            cur.execute(
+                "SELECT chunk_text, embedding_json "
+                "FROM document_chunks WHERE length(embedding_json) > 100;"
+            )
+            for ctext, emb_json in cur.fetchall():
+                if not ctext:
+                    continue
                 try:
-                    existing_embeddings[row[0]] = json.loads(row[1])
+                    existing_embeddings[_text_hash(ctext)] = json.loads(emb_json)
                 except (ValueError, TypeError) as exc:
-                    logger.debug(f"Skipping invalid cached embedding for {row[0]}: {exc}")
+                    logger.debug(f"Skipping invalid cached embedding: {exc}")
 
-    new_chunks = [ch for ch in chunks_to_insert if ch["chunk_id"] not in existing_embeddings]
+    new_chunks = [ch for ch in chunks_to_insert if _text_hash(ch["chunk_text"]) not in existing_embeddings]
     if new_chunks:
         print(f"[*] Found {len(new_chunks)} new/unembedded chunks out of {total_chunks} total. Generating embeddings...")
         batch_size = 50
@@ -325,7 +335,7 @@ def run_ingestion(force_reembed=False):
             batch_embs = ai.batch_get_embeddings(batch_texts, batch_size=batch_size, delay=0)
             for idx, ch in enumerate(batch):
                 emb = batch_embs[idx] if idx < len(batch_embs) else [0.0] * 768
-                existing_embeddings[ch["chunk_id"]] = emb
+                existing_embeddings[_text_hash(ch["chunk_text"])] = emb
             print(f"  [+] Embedded {min(start + batch_size, len(new_chunks))}/{len(new_chunks)} new chunks")
             if b_idx + 1 < total_batches and delay > 0:
                 time.sleep(delay)
@@ -333,21 +343,46 @@ def run_ingestion(force_reembed=False):
         print(f"[*] All {total_chunks} chunks already have valid embeddings. (Incremental skip)")
 
     print(f"[*] Storing {total_chunks} chunks into database...")
+    valid_chunk_ids = set()
     for ch in chunks_to_insert:
-        embedding = existing_embeddings.get(ch["chunk_id"], [0.0] * 768)
+        valid_chunk_ids.add(ch["chunk_id"])
+        embedding = existing_embeddings.get(_text_hash(ch["chunk_text"]), [0.0] * 768)
         if use_postgres:
             with pg_con.cursor() as cur:
                 cur.execute("""
                     INSERT INTO document_chunks (chunk_id, circular_id, circular_ref_no, department, status, section_heading, page_number, chunk_text, required_forms, doc_type, embedding)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (chunk_id) DO UPDATE SET
-                        chunk_text = EXCLUDED.chunk_text, required_forms = EXCLUDED.required_forms, doc_type = EXCLUDED.doc_type, embedding = EXCLUDED.embedding;
+                        circular_id = EXCLUDED.circular_id, circular_ref_no = EXCLUDED.circular_ref_no,
+                        department = EXCLUDED.department, status = EXCLUDED.status,
+                        section_heading = EXCLUDED.section_heading, page_number = EXCLUDED.page_number,
+                        chunk_text = EXCLUDED.chunk_text, required_forms = EXCLUDED.required_forms,
+                        doc_type = EXCLUDED.doc_type, embedding = EXCLUDED.embedding;
                 """, (ch["chunk_id"], ch["circular_id"], ch["circular_ref_no"], ch["department"], ch["status"], ch["section_heading"], ch["page_number"], ch["chunk_text"], ch["required_forms"], ch.get("doc_type", "circular"), embedding))
         else:
             sqlite_con.execute("""
                 INSERT OR REPLACE INTO document_chunks (chunk_id, circular_id, circular_ref_no, department, status, section_heading, page_number, chunk_text, required_forms, doc_type, embedding_json)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (ch["chunk_id"], ch["circular_id"], ch["circular_ref_no"], ch["department"], ch["status"], ch["section_heading"], ch["page_number"], ch["chunk_text"], ch["required_forms"], ch.get("doc_type", "circular"), json.dumps(embedding)))
+
+    if sqlite_con and valid_chunk_ids:
+        cur = sqlite_con.cursor()
+        existing_circ_cids = [
+            r[0]
+            for r in cur.execute(
+                "SELECT chunk_id FROM document_chunks WHERE doc_type IN ('circular', 'admin_form');"
+            )
+        ]
+        stale_cids = [cid for cid in existing_circ_cids if cid not in valid_chunk_ids]
+        if stale_cids:
+            print(f"[*] Pruning {len(stale_cids)} stale/shifted circular chunks from document_chunks...")
+            for i in range(0, len(stale_cids), 500):
+                batch_ids = stale_cids[i : i + 500]
+                placeholders = ",".join("?" for _ in batch_ids)
+                sqlite_con.execute(
+                    f"DELETE FROM document_chunks WHERE chunk_id IN ({placeholders});",
+                    batch_ids,
+                )
 
     if sqlite_con:
         sqlite_con.commit()

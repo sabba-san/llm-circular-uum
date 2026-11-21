@@ -252,10 +252,8 @@ class AIProvider:
     def _call_gemini(self, prompt):
         models = [
             "gemini-2.5-flash",
+            "gemini-2.0-flash",
             "gemini-1.5-flash",
-            "gemini-3.5-flash-lite",
-            "gemini-3.5-flash",
-            "gemini-3.8-flash",
             "gemini-flash-latest",
         ]
         for model in models:
@@ -336,7 +334,7 @@ class AIProvider:
             lines = [
                 "### UUM Circular & Form Summary (Extractive Index Mode)",
                 "",
-                "> **Note**: For full automatic AI answer synthesis, please ensure your `GEMINI_API_KEY` or `GROQ_API_KEY` is configured in `.env`.",
+                "> **Note**: Showing direct excerpts from official UUM documents (AI summary service is currently offline).",
                 "",
                 "Based on the UUM Circular & Form database, here are the most relevant references for your query:",
                 ""
@@ -360,7 +358,7 @@ class AIProvider:
             lines = [
                 "### Ringkasan Maklumat Pekeliling & Borang UUM (Extractive Index Mode)",
                 "",
-                "> **Perhatian**: Untuk sintesis jawapan automatik penuh menggunakan LLM, sila masukkan `GEMINI_API_KEY` atau `GROQ_API_KEY` ke dalam fail `.env` anda.",
+                "> **Perhatian**: Memaparkan petikan terus daripada dokumen rasmi UUM (perkhidmatan ringkasan AI sedang tidak tersedia).",
                 "",
                 "Berdasarkan pangkalan data Pekeliling dan Borang UUM, berikut ialah rujukan yang paling relevan bagi carian anda:",
                 ""

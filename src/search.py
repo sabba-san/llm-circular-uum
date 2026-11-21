@@ -10,7 +10,9 @@ import re
 import sqlite3
 import logging
 import math
+import threading
 from typing import Any
+import numpy as np
 from src.ai_provider import AIProvider, load_env, find_root_dir, is_english_query
 from src.db import get_sqlite_path
 
@@ -86,6 +88,16 @@ ENGLISH_TO_MALAY_EXPANSION = {
     "thesis": ["tesis", "disertasi", "cadangan", "viva", "ahsgs", "gsgsg"],
     "dissertation": ["disertasi", "tesis", "viva"],
     "deferment": ["tangguh", "pengajian", "penangguhan"],
+    "struktur": ["structure", "programme", "curriculum", "core"],
+    "kursus": ["course", "courses", "curriculum", "structure"],
+    "sarjana": ["bachelor", "master", "degree", "honours"],
+    "muda": ["bachelor", "undergraduate", "honours"],
+    "teknologi": ["technology", "information", "it", "multimedia"],
+    "maklumat": ["information", "technology", "it"],
+    "kepujian": ["honours", "hons", "bachelor"],
+    "pengkomputeran": ["computing", "computer", "soc"],
+    "komputer": ["computer", "computing", "soc"],
+    "sains": ["science", "bsc", "bachelor"],
 }
 
 QUERY_STOPWORDS = {
@@ -122,12 +134,86 @@ def expand_query_tokens(query):
 def _extract_reference_codes(query):
     """Extract exact circular/form reference patterns such as '9/2026', '15/2015', 'RMC 008', 'ICC009'."""
     refs = []
-    for m in re.finditer(r"\b\d{1,2}/\d{4}\b", query):
+    for m in re.finditer(r"\b(?!20\d{2}/20\d{2}\b)\d{1,2}/\d{4}\b", query):
         refs.append(m.group(0).lower())
     for m in re.finditer(r"\b(?:rmc|icc|kew\.pa|ben)\s*-?\s*\d{2,3}\b", query.lower()):
         code = re.sub(r"\s+", " ", m.group(0)).strip()
         refs.append(code)
     return list(dict.fromkeys(refs))
+
+
+UUM_SCHOOL_PATTERNS: dict[str, re.Pattern[str]] = {
+    "soc": re.compile(r"\bsoc\b|school of computing|pusat pengajian pengkomputeran", re.IGNORECASE),
+    "smmtc": re.compile(r"\bsmmtc\b|school of multimedia|teknologi multimedia", re.IGNORECASE),
+    "sapsp": re.compile(r"\bsapsp\b|applied psychology|psikologi gunaan|pembangunan sosial", re.IGNORECASE),
+    "slcp": re.compile(r"\bslcp\b|school of languages|civilisation|pusat bahasa", re.IGNORECASE),
+    "soe": re.compile(r"\bsoe\b|school of education|pusat pengajian pendidikan", re.IGNORECASE),
+    "sqs": re.compile(r"\bsqs\b|quantitative sciences|sains kuantitatif", re.IGNORECASE),
+    "scimpa": re.compile(r"\bscimpa\b|creative industry|industri kreatif", re.IGNORECASE),
+    "sbm": re.compile(r"\bsbm\b|school of business management|pengurusan perniagaan", re.IGNORECASE),
+    "sefb": re.compile(r"\bsefb\b|economics,\s*finance|ekonomi,\s*kewangan", re.IGNORECASE),
+    "stml": re.compile(r"\bstml\b|technology management|pengurusan teknologi", re.IGNORECASE),
+    "tissa": re.compile(r"\btissa\b|school of accountancy|perakaunan", re.IGNORECASE),
+    "ibs": re.compile(r"\bibs\b|islamic business school|perniagaan islam", re.IGNORECASE),
+    "nga": re.compile(r"\bnga\b|\bagn\b|national golf academy|akademi golf", re.IGNORECASE),
+    "sol": re.compile(r"\bsol\b|school of law|pusat pengajian undang-undang", re.IGNORECASE),
+    "sog": re.compile(r"\bsog\b|school of government|pusat pengajian kerajaan", re.IGNORECASE),
+    "sois": re.compile(r"\bsois\b|international studies|pengajian antarabangsa", re.IGNORECASE),
+    "sthem": re.compile(r"\bsthem\b|tourism,\s*hospitality|pelancongan", re.IGNORECASE),
+}
+
+
+def _extract_school_targets(query: str) -> set[str]:
+    """Return the set of canonical UUM school codes explicitly referenced in a query."""
+    targets: set[str] = set()
+    for code, pat in UUM_SCHOOL_PATTERNS.items():
+        if pat.search(query):
+            targets.add(code)
+    return targets
+
+
+def _extract_chunk_schools(chunk: dict[str, Any]) -> set[str]:
+    """Return the set of canonical UUM school codes associated with a chunk's metadata."""
+    hay = f"{chunk.get('school') or ''} {chunk.get('department') or ''} {chunk.get('circular_ref_no') or ''}"
+    matched: set[str] = set()
+    for code, pat in UUM_SCHOOL_PATTERNS.items():
+        if pat.search(hay):
+            matched.add(code)
+    return matched
+
+
+def _extract_session_years(query: str) -> set[str]:
+    """Extract normalized academic session tokens (e.g. '2026/2027' -> {'2026/2027', '26 27', '26/27'})."""
+    tokens: set[str] = set()
+    for m in re.finditer(r"\b20(\d{2})\s*[/\- ]\s*20(\d{2})\b", query):
+        y1, y2 = m.group(1), m.group(2)
+        tokens.update({f"20{y1}/20{y2}", f"20{y1}-20{y2}", f"20{y1} 20{y2}", f"{y1} {y2}", f"{y1}/{y2}"})
+    for m in re.finditer(r"\b(2[0-9])\s*[/\-]\s*(2[1-9])\b", query):
+        y1, y2 = m.group(1), m.group(2)
+        tokens.update({f"20{y1}/20{y2}", f"20{y1}-20{y2}", f"20{y1} 20{y2}", f"{y1} {y2}", f"{y1}/{y2}"})
+    return tokens
+
+_VALID_SHORT_REF_RE = re.compile(
+    r"\b(?:\d{1,2}/\d{4}|(?:rmc|icc|kew\.pa|ben|pg)\s*-?\s*\d{2,3}|pekeliling|borang|statut)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_junk_chunk(chunk_text: str) -> bool:
+    """Detect meaningless form-stub chunks (e.g. ':', 'e.g/cth :', '1 0 2 0 1 0 4') while keeping valid short headers."""
+    text = (chunk_text or "").strip()
+    if not text:
+        return True
+    if _VALID_SHORT_REF_RE.search(text):
+        return False
+    alnum_count = sum(1 for ch in text if ch.isalnum())
+    if alnum_count < 15:
+        return True
+    alpha_words = re.findall(r"[A-Za-z]{3,}", text)
+    if len(alpha_words) < 3 and len(text) < 45:
+        return True
+    return False
+
 
 def cosine_similarity(v1, v2):
     """Compute cosine similarity between two float vectors."""
@@ -143,6 +229,10 @@ class UUMAssistant:
         self.use_postgres = bool(self.db_url)
         self.pg_con = None
         self.sqlite_con = None
+        self._lock = threading.RLock()
+        self._local = threading.local()
+        self._generation = 0
+        self._vec_cache: dict[str, Any] | None = None
 
         if self.use_postgres:
             try:
@@ -155,27 +245,61 @@ class UUMAssistant:
         if not self.use_postgres:
             if not os.path.exists(SQLITE_DB):
                 raise FileNotFoundError(f"Database not found at {SQLITE_DB}. Please run ingest.py first.")
-            self.sqlite_con = sqlite3.connect(SQLITE_DB, timeout=60.0, check_same_thread=False)
-            self.sqlite_con.row_factory = sqlite3.Row
+            self.sqlite_con = self._open_sqlite_connection()
             self._db_mtime = os.path.getmtime(SQLITE_DB)
         else:
             self._db_mtime = 0.0
 
         self.doc_registry, self.forms_list = self._load_doc_registry()
 
+    def _open_sqlite_connection(self) -> sqlite3.Connection:
+        con = sqlite3.connect(SQLITE_DB, timeout=60.0)
+        con.row_factory = sqlite3.Row
+        return con
+
+    def _get_sqlite_con(self) -> sqlite3.Connection | None:
+        """Return a thread-local SQLite connection synced with the current DB generation."""
+        if self.use_postgres or not os.path.exists(SQLITE_DB):
+            return None
+        self._ensure_fresh_sqlite()
+        gen = self._generation
+        local_con: sqlite3.Connection | None = getattr(self._local, "con", None)
+        local_gen: int = getattr(self._local, "gen", -1)
+        if local_con is None or local_gen != gen:
+            if local_con is not None:
+                try:
+                    local_con.close()
+                except sqlite3.Error as exc:
+                    logger.debug(f"Error closing stale thread-local SQLite connection: {exc}")
+            local_con = self._open_sqlite_connection()
+            self._local.con = local_con
+            self._local.gen = gen
+        return local_con
+
     def _reconnect_sqlite(self):
-        """Reconnect SQLite and reload registry after schema/FTS rebuilds."""
+        """Reconnect SQLite and reload registry/vector cache after schema/FTS rebuilds."""
         if self.use_postgres or not os.path.exists(SQLITE_DB):
             return
-        try:
-            if self.sqlite_con:
-                self.sqlite_con.close()
-        except sqlite3.Error as exc:
-            logger.debug(f"Error closing previous SQLite connection: {exc}")
-        self.sqlite_con = sqlite3.connect(SQLITE_DB, timeout=60.0, check_same_thread=False)
-        self.sqlite_con.row_factory = sqlite3.Row
-        self._db_mtime = os.path.getmtime(SQLITE_DB)
-        self.doc_registry, self.forms_list = self._load_doc_registry()
+        with self._lock:
+            self._generation += 1
+            self._vec_cache = None
+            local_con: sqlite3.Connection | None = getattr(self._local, "con", None)
+            if local_con is not None:
+                try:
+                    local_con.close()
+                except sqlite3.Error as exc:
+                    logger.debug(f"Error closing thread-local SQLite connection: {exc}")
+                self._local.con = None
+            try:
+                if self.sqlite_con:
+                    self.sqlite_con.close()
+            except sqlite3.Error as exc:
+                logger.debug(f"Error closing previous SQLite connection: {exc}")
+            self.sqlite_con = self._open_sqlite_connection()
+            self._local.con = self.sqlite_con
+            self._local.gen = self._generation
+            self._db_mtime = os.path.getmtime(SQLITE_DB)
+            self.doc_registry, self.forms_list = self._load_doc_registry()
 
     def _ensure_fresh_sqlite(self):
         """Refresh SQLite connection if the database file was updated on disk."""
@@ -184,6 +308,96 @@ class UUMAssistant:
         current_mtime = os.path.getmtime(SQLITE_DB)
         if current_mtime != getattr(self, "_db_mtime", 0.0):
             self._reconnect_sqlite()
+
+    def _load_vector_cache(self) -> dict[str, Any]:
+        """Load and L2-normalize all SQLite chunk embeddings into an in-memory NumPy matrix."""
+        with self._lock:
+            if self._vec_cache is not None and self._vec_cache.get("mtime") == self._db_mtime:
+                return self._vec_cache
+
+            con = self._get_sqlite_con()
+            if con is None:
+                empty: dict[str, Any] = {
+                    "mtime": self._db_mtime,
+                    "chunk_ids": [],
+                    "is_active": np.zeros(0, dtype=bool),
+                    "matrix": np.zeros((0, 768), dtype=np.float32),
+                    "meta": [],
+                    "id_to_idx": {},
+                }
+                self._vec_cache = empty
+                return empty
+
+            cur = con.cursor()
+            cur.execute("""
+                SELECT chunk_id, circular_id, circular_ref_no, department, status, section_heading, page_number, chunk_text, required_forms,
+                       doc_type, college, school, academic_level, academic_session, embedding_json
+                FROM document_chunks
+                WHERE embedding_json IS NOT NULL AND embedding_json != '';
+            """)
+            chunk_ids: list[str] = []
+            is_active_list: list[bool] = []
+            meta_list: list[dict[str, Any]] = []
+            vec_rows: list[list[float]] = []
+            id_to_idx: dict[str, int] = {}
+            expected_dim: int | None = None
+
+            for r in cur.fetchall():
+                raw_emb = r["embedding_json"]
+                if not raw_emb:
+                    continue
+                try:
+                    vec = json.loads(raw_emb)
+                except (ValueError, TypeError):
+                    continue
+                if not isinstance(vec, list) or not vec:
+                    continue
+                if expected_dim is None:
+                    expected_dim = len(vec)
+                elif len(vec) != expected_dim:
+                    continue
+
+                cid = r["chunk_id"]
+                idx = len(chunk_ids)
+                chunk_ids.append(cid)
+                id_to_idx[cid] = idx
+                is_active_list.append(r["status"] == "Active")
+                vec_rows.append(vec)
+                meta_list.append({
+                    "chunk_id": cid,
+                    "circular_id": r["circular_id"],
+                    "circular_ref_no": r["circular_ref_no"],
+                    "department": r["department"],
+                    "status": r["status"],
+                    "section_heading": r["section_heading"],
+                    "page_number": r["page_number"],
+                    "chunk_text": r["chunk_text"],
+                    "required_forms": r["required_forms"],
+                    "doc_type": r["doc_type"],
+                    "college": r["college"],
+                    "school": r["school"],
+                    "academic_level": r["academic_level"],
+                    "academic_session": r["academic_session"],
+                })
+
+            if vec_rows:
+                mat = np.asarray(vec_rows, dtype=np.float32)
+                norms = np.linalg.norm(mat, axis=1, keepdims=True)
+                norms = np.where(norms == 0.0, 1.0, norms)
+                mat = mat / norms
+            else:
+                mat = np.zeros((0, expected_dim or 768), dtype=np.float32)
+
+            cache: dict[str, Any] = {
+                "mtime": self._db_mtime,
+                "chunk_ids": chunk_ids,
+                "is_active": np.asarray(is_active_list, dtype=bool),
+                "matrix": mat,
+                "meta": meta_list,
+                "id_to_idx": id_to_idx,
+            }
+            self._vec_cache = cache
+            return cache
 
     def _load_doc_registry(self):
         """Build lookup dictionary mapping document/form IDs to file_path, format, and metadata."""
@@ -289,7 +503,7 @@ class UUMAssistant:
                 registry[r["id"]] = entry
                 forms_list.append(entry)
         except sqlite3.OperationalError as exc:
-            logger.debug(f"required_documents_forms table unavailable: {exc}")
+            logger.debug(f"college_forms table unavailable: {exc}")
 
         return registry, forms_list
 
@@ -373,7 +587,7 @@ class UUMAssistant:
         expanded_tokens = expand_query_tokens(query)
         ref_codes = _extract_reference_codes(query)
         fts_query = " OR ".join(expanded_tokens[:16]) if expanded_tokens else ""
-        candidates = {}
+        candidates: dict[str, dict[str, Any]] = {}
 
         if self.use_postgres and self.pg_con is not None:
             with self.pg_con.cursor() as cur:
@@ -387,6 +601,8 @@ class UUMAssistant:
                     ORDER BY bm25_score DESC LIMIT 40;
                 """, (query, filter_active, query))
                 for row in cur.fetchall():
+                    if _is_junk_chunk(row[7]):
+                        continue
                     item = {
                         "chunk_id": row[0],
                         "circular_id": row[1],
@@ -418,6 +634,8 @@ class UUMAssistant:
                     ORDER BY embedding <=> %s::vector ASC LIMIT 40;
                 """, (q_vec, filter_active, q_vec))
                 for row in cur.fetchall():
+                    if _is_junk_chunk(row[7]):
+                        continue
                     cid = row[0]
                     sim = float(row[14])
                     if cid in candidates:
@@ -443,23 +661,129 @@ class UUMAssistant:
                         }
                         if self._match_Scope(item, scope):
                             candidates[cid] = item
-        elif self.sqlite_con is not None:
-            # SQLite FTS5 Search (with expanded tokens)
-            fts_limit = 60 if (not scope or scope.lower() in ("all", "all uum")) else 500
-            if fts_query:
-                for attempt in range(2):
-                    try:
-                        cur = self.sqlite_con.cursor()
+        else:
+            sqlite_con = self._get_sqlite_con()
+            if sqlite_con is not None:
+                vec_cache = self._load_vector_cache()
+                mat = vec_cache["matrix"]
+                id_to_idx = vec_cache["id_to_idx"]
+
+                q_arr = np.asarray(q_vec, dtype=np.float32) if q_vec else np.zeros(0, dtype=np.float32)
+                q_norm = float(np.linalg.norm(q_arr)) if q_arr.size else 0.0
+                q_unit = (q_arr / q_norm) if q_norm > 0.0 else q_arr
+                has_valid_vec = bool(mat.shape[0] > 0 and q_unit.size == mat.shape[1] and q_norm > 0.0)
+
+                def _cached_sim(chunk_id: str) -> float:
+                    if not has_valid_vec:
+                        return 0.0
+                    idx = id_to_idx.get(chunk_id)
+                    if idx is None:
+                        return 0.0
+                    return float(np.dot(mat[idx], q_unit))
+
+                # 1. SQLite FTS5 Search (with expanded tokens & junk-stub filtering)
+                is_all_scope = not scope or scope.lower() in ("all", "all uum")
+                fts_limit = 220 if is_all_scope else 650
+                fts_target = max(60, top_k * 4)
+                if fts_query:
+                    for attempt in range(2):
+                        try:
+                            cur = sqlite_con.cursor()
+                            cur.execute("""
+                                SELECT c.chunk_id, c.circular_id, c.circular_ref_no, c.department, c.status, c.section_heading, c.page_number, c.chunk_text, c.required_forms,
+                                       c.doc_type, c.college, c.school, c.academic_level, c.academic_session,
+                                       rank AS bm25_rank
+                                FROM chunks_fts f
+                                JOIN document_chunks c ON f.chunk_id = c.chunk_id
+                                WHERE chunks_fts MATCH ? AND (? = 0 OR c.status = 'Active')
+                                ORDER BY rank LIMIT ?;
+                            """, (fts_query, 1 if filter_active else 0, fts_limit))
+                            for r in cur.fetchall():
+                                if _is_junk_chunk(r["chunk_text"]):
+                                    continue
+                                cid = r["chunk_id"]
+                                item = {
+                                    "chunk_id": cid,
+                                    "circular_id": r["circular_id"],
+                                    "circular_ref_no": r["circular_ref_no"],
+                                    "department": r["department"],
+                                    "status": r["status"],
+                                    "section_heading": r["section_heading"],
+                                    "page_number": r["page_number"],
+                                    "chunk_text": r["chunk_text"],
+                                    "required_forms": r["required_forms"],
+                                    "doc_type": r["doc_type"],
+                                    "college": r["college"],
+                                    "school": r["school"],
+                                    "academic_level": r["academic_level"],
+                                    "academic_session": r["academic_session"],
+                                }
+                                if not self._match_Scope(item, scope):
+                                    continue
+                                item["bm25_score"] = abs(float(r["bm25_rank"]))
+                                item["vec_score"] = _cached_sim(cid)
+                                candidates[cid] = item
+                                if len(candidates) >= fts_target:
+                                    break
+                            break
+                        except sqlite3.Error as exc:
+                            logger.warning(f"SQLite FTS5 query error (attempt {attempt + 1}): {exc}")
+                            if attempt == 0:
+                                self._reconnect_sqlite()
+                                sqlite_con = self._get_sqlite_con()
+                                if sqlite_con is None:
+                                    break
+                            else:
+                                break
+
+                # 2. Vectorized NumPy semantic search across cached embeddings
+                min_sim = 0.38 if (expanded_tokens or ref_codes) else 0.62
+                if has_valid_vec:
+                    sims = mat @ q_unit
+                    mask = sims > min_sim
+                    if filter_active:
+                        mask = mask & vec_cache["is_active"]
+                    hit_indices = np.flatnonzero(mask)
+                    if hit_indices.size > 0:
+                        order = hit_indices[np.argsort(sims[hit_indices])[::-1]]
+                        vec_target = max(35, top_k * 3)
+                        added_vec = 0
+                        meta_list = vec_cache["meta"]
+                        for idx in order:
+                            meta = meta_list[int(idx)]
+                            cid = meta["chunk_id"]
+                            if cid in candidates:
+                                continue
+                            if _is_junk_chunk(meta["chunk_text"]):
+                                continue
+                            if not self._match_Scope(meta, scope):
+                                continue
+                            item = dict(meta)
+                            item["bm25_score"] = 0.0
+                            item["vec_score"] = float(sims[int(idx)])
+                            candidates[cid] = item
+                            added_vec += 1
+                            if added_vec >= vec_target:
+                                break
+
+                # 3. Exact circular/form reference injection (e.g. '9/2026', '15/2015', 'RMC 008')
+                if ref_codes and sqlite_con is not None:
+                    cur = sqlite_con.cursor()
+                    for ref in ref_codes:
+                        like_pat = f"%{ref}%"
                         cur.execute("""
-                            SELECT c.chunk_id, c.circular_id, c.circular_ref_no, c.department, c.status, c.section_heading, c.page_number, c.chunk_text, c.required_forms,
-                                   c.doc_type, c.college, c.school, c.academic_level, c.academic_session, c.embedding_json,
-                                   rank AS bm25_rank
-                            FROM chunks_fts f
-                            JOIN document_chunks c ON f.chunk_id = c.chunk_id
-                            WHERE chunks_fts MATCH ? AND (? = 0 OR c.status = 'Active')
-                            ORDER BY rank LIMIT ?;
-                        """, (fts_query, 1 if filter_active else 0, fts_limit))
+                            SELECT chunk_id, circular_id, circular_ref_no, department, status, section_heading, page_number, chunk_text, required_forms,
+                                   doc_type, college, school, academic_level, academic_session
+                            FROM document_chunks
+                            WHERE (? = 0 OR status = 'Active')
+                              AND (lower(COALESCE(circular_ref_no, '')) LIKE ?
+                                   OR lower(COALESCE(required_forms, '')) LIKE ?
+                                   OR lower(chunk_text) LIKE ?)
+                            LIMIT 25;
+                        """, (1 if filter_active else 0, like_pat, like_pat, like_pat))
                         for r in cur.fetchall():
+                            if _is_junk_chunk(r["chunk_text"]):
+                                continue
                             cid = r["chunk_id"]
                             item = {
                                 "chunk_id": cid,
@@ -479,110 +803,15 @@ class UUMAssistant:
                             }
                             if not self._match_Scope(item, scope):
                                 continue
-                            vec = json.loads(r["embedding_json"]) if r["embedding_json"] else []
-                            sim = cosine_similarity(q_vec, vec) if vec else 0.0
-                            item["bm25_score"] = abs(float(r["bm25_rank"]))
-                            item["vec_score"] = sim
-                            candidates[cid] = item
-                            if len(candidates) >= 60:
-                                break
-                        break
-                    except sqlite3.Error as exc:
-                        logger.warning(f"SQLite FTS5 query error (attempt {attempt + 1}): {exc}")
-                        if attempt == 0:
-                            self._reconnect_sqlite()
-                        else:
-                            break
-
-            # SQLite Vector scanning across active chunks to catch semantic matches
-            cur = self.sqlite_con.cursor()
-            cur.execute("""
-                SELECT chunk_id, circular_id, circular_ref_no, department, status, section_heading, page_number, chunk_text, required_forms,
-                       doc_type, college, school, academic_level, academic_session, embedding_json
-                FROM document_chunks
-                WHERE (? = 0 OR status = 'Active')
-            """, (1 if filter_active else 0,))
-
-            min_sim = 0.38 if (expanded_tokens or ref_codes) else 0.62
-            vector_candidates = []
-            for r in cur.fetchall():
-                cid = r["chunk_id"]
-                if cid in candidates:
-                    continue
-                item = {
-                    "chunk_id": cid,
-                    "circular_id": r["circular_id"],
-                    "circular_ref_no": r["circular_ref_no"],
-                    "department": r["department"],
-                    "status": r["status"],
-                    "section_heading": r["section_heading"],
-                    "page_number": r["page_number"],
-                    "chunk_text": r["chunk_text"],
-                    "required_forms": r["required_forms"],
-                    "doc_type": r["doc_type"],
-                    "college": r["college"],
-                    "school": r["school"],
-                    "academic_level": r["academic_level"],
-                    "academic_session": r["academic_session"],
-                }
-                if not self._match_Scope(item, scope):
-                    continue
-                vec = json.loads(r["embedding_json"]) if r["embedding_json"] else []
-                if vec:
-                    sim = cosine_similarity(q_vec, vec)
-                    if sim > min_sim:
-                        vector_candidates.append((sim, item))
-
-            vector_candidates.sort(key=lambda x: x[0], reverse=True)
-            for sim, item in vector_candidates[:35]:
-                cid = item["chunk_id"]
-                item["bm25_score"] = 0.0
-                item["vec_score"] = sim
-                candidates[cid] = item
-
-            # Exact circular/form reference injection (e.g. '9/2026', '15/2015', 'RMC 008')
-            if ref_codes:
-                cur = self.sqlite_con.cursor()
-                for ref in ref_codes:
-                    like_pat = f"%{ref}%"
-                    cur.execute("""
-                        SELECT chunk_id, circular_id, circular_ref_no, department, status, section_heading, page_number, chunk_text, required_forms,
-                               doc_type, college, school, academic_level, academic_session, embedding_json
-                        FROM document_chunks
-                        WHERE (? = 0 OR status = 'Active')
-                          AND (lower(COALESCE(circular_ref_no, '')) LIKE ?
-                               OR lower(COALESCE(required_forms, '')) LIKE ?
-                               OR lower(chunk_text) LIKE ?)
-                        LIMIT 25;
-                    """, (1 if filter_active else 0, like_pat, like_pat, like_pat))
-                    for r in cur.fetchall():
-                        cid = r["chunk_id"]
-                        item = {
-                            "chunk_id": cid,
-                            "circular_id": r["circular_id"],
-                            "circular_ref_no": r["circular_ref_no"],
-                            "department": r["department"],
-                            "status": r["status"],
-                            "section_heading": r["section_heading"],
-                            "page_number": r["page_number"],
-                            "chunk_text": r["chunk_text"],
-                            "required_forms": r["required_forms"],
-                            "doc_type": r["doc_type"],
-                            "college": r["college"],
-                            "school": r["school"],
-                            "academic_level": r["academic_level"],
-                            "academic_session": r["academic_session"],
-                        }
-                        if not self._match_Scope(item, scope):
-                            continue
-                        if cid not in candidates:
-                            vec = json.loads(r["embedding_json"]) if r["embedding_json"] else []
-                            item["bm25_score"] = 1.0
-                            item["vec_score"] = cosine_similarity(q_vec, vec) if vec else 0.0
-                            candidates[cid] = item
-                        candidates[cid]["exact_ref_hit"] = True
+                            if cid not in candidates:
+                                item["bm25_score"] = 1.0
+                                item["vec_score"] = _cached_sim(cid)
+                                candidates[cid] = item
+                            candidates[cid]["exact_ref_hit"] = True
 
         asks_for_form = bool(re.search(r"\b(which form|what form|borang apa|apakah borang|senarai borang)\b", query.lower()))
+        target_schools = _extract_school_targets(query)
+        target_sessions = _extract_session_years(query)
         results = list(candidates.values())
         max_bm25 = max([c["bm25_score"] for c in results], default=1.0) or 1.0
         for c in results:
@@ -591,11 +820,58 @@ class UUMAssistant:
                 base_score = min(1.0, base_score + 0.35)
             if asks_for_form and c.get("doc_type") in ("college_form", "admin_form"):
                 base_score = min(1.0, base_score + 0.12)
+
+            if target_schools:
+                chunk_schools = _extract_chunk_schools(c)
+                if chunk_schools & target_schools:
+                    base_score = min(1.0, base_score + 0.22)
+                    c["school_match"] = True
+                elif chunk_schools:
+                    base_score = max(0.0, base_score - 0.22)
+                    c["school_mismatch"] = True
+
+            if target_sessions:
+                sess_hay = f"{c.get('academic_session') or ''} {c.get('circular_ref_no') or ''}".lower()
+                if any(tok in sess_hay for tok in target_sessions):
+                    base_score = min(1.0, base_score + 0.12)
+
             c["combined_score"] = round(base_score, 4)
-            self._enrich_chunk(c)
 
         results.sort(key=lambda x: x["combined_score"], reverse=True)
-        return results[:top_k]
+
+        # When specific target_schools are requested, prioritize non-mismatched chunks first
+        if target_schools:
+            matched_or_neutral = [c for c in results if not c.get("school_mismatch")]
+            mismatched = [c for c in results if c.get("school_mismatch")]
+            results = matched_or_neutral + mismatched
+
+        # Per-document diversity cap over expanded candidate pool
+        pool = results[:max(top_k * 4, 24)]
+        selected: list[dict[str, Any]] = []
+        overflow: list[dict[str, Any]] = []
+        doc_counts: dict[str, int] = {}
+        # Allow up to 3 chunks per doc when a single school is targeted and fewer than 3 matching docs exist
+        matching_doc_ids = {c.get("circular_id") for c in pool if c.get("school_match")}
+        max_per_doc = 3 if (len(target_schools) == 1 and 0 < len(matching_doc_ids) < 3) else 2
+        for c in pool:
+            if target_schools and c.get("school_mismatch") and len(selected) >= len(matching_doc_ids) and len(selected) > 0:
+                overflow.append(c)
+                continue
+            doc_key = c.get("circular_id") or c.get("chunk_id") or ""
+            if doc_counts.get(doc_key, 0) < max_per_doc:
+                selected.append(c)
+                doc_counts[doc_key] = doc_counts.get(doc_key, 0) + 1
+                if len(selected) >= top_k:
+                    break
+            else:
+                overflow.append(c)
+
+        if len(selected) < top_k and overflow:
+            selected.extend(overflow[: top_k - len(selected)])
+
+        for c in selected:
+            self._enrich_chunk(c)
+        return selected
 
     def get_document_preview(self, doc_id):
         """Return full metadata and extracted sections/clauses for any document or form ID."""
@@ -612,8 +888,9 @@ class UUMAssistant:
             return None
 
         sections = []
-        if self.sqlite_con:
-            cur = self.sqlite_con.cursor()
+        sqlite_con = self._get_sqlite_con()
+        if sqlite_con is not None:
+            cur = sqlite_con.cursor()
             cur.execute("""
                 SELECT chunk_id, section_heading, page_number, chunk_text
                 FROM document_chunks
@@ -714,6 +991,8 @@ class UUMAssistant:
 
     def ask(self, query, filter_active=True, scope="All", top_k=6, previous_query=""):
         """Ask question and generate grounded response with strict citations and linked files."""
+        is_en = is_english_query(query)
+        lang = "en" if is_en else "ms"
         search_query = query
         if previous_query and previous_query.strip() and previous_query.strip().lower() != query.strip().lower():
             if len(query.split()) <= 12 or re.search(r"\b(this|that|these|those|it|ini|itu|tersebut)\b", query.lower()):
@@ -722,7 +1001,7 @@ class UUMAssistant:
         retrieved = self.hybrid_search(search_query, top_k=top_k, filter_active=filter_active, scope=scope)
 
         if not retrieved:
-            if is_english_query(query):
+            if is_en:
                 msg = "No official circulars, academic handbooks, or forms were found matching your query and scope filter. Try broadening your scope to 'All UUM' or contact the responsible PTJ / College."
             else:
                 msg = "Tiada pekeliling, buku panduan akademik, atau borang rasmi yang ditemui bagi carian dan tapisan ini. Sila cuba tapisan 'All UUM' atau hubungi PTJ / Kolej berkenaan."
@@ -734,18 +1013,31 @@ class UUMAssistant:
                 "follow_up_questions": [],
                 "query": query,
                 "scope": scope,
+                "language": lang,
             }
 
         response_text, provider_name = self.ai.generate_chat_response(query, retrieved)
 
-        # Deduplicate linked forms across all retrieved sources
+        # Deduplicate linked forms using a relative relevance floor tied to the top-ranked chunk
+        top_score = float(retrieved[0].get("combined_score", 0.0))
+        form_floor = top_score * 0.65
+        direct_form_floor = top_score * 0.55
+
         all_forms = []
         seen_fids = set()
         for s in retrieved:
+            score = float(s.get("combined_score", 0.0))
+            is_form_doc = s.get("doc_type") in ("admin_form", "college_form")
+            if score < form_floor and not (is_form_doc and score >= direct_form_floor):
+                continue
             for fm in s.get("linked_forms", []):
                 if fm["doc_id"] not in seen_fids:
                     all_forms.append(fm)
                     seen_fids.add(fm["doc_id"])
+                    if len(all_forms) >= 6:
+                        break
+            if len(all_forms) >= 6:
+                break
 
         follow_ups = self._generate_follow_up_questions(query, retrieved, all_forms)
 
@@ -757,6 +1049,7 @@ class UUMAssistant:
             "follow_up_questions": follow_ups,
             "query": query,
             "scope": scope,
+            "language": lang,
         }
 
 def print_result(res):
